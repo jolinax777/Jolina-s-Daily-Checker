@@ -674,11 +674,9 @@ function todayFormatted() {
 }
 
 async function notionFetch(url, options) {
-  // Try multiple CORS proxies
   const proxies = [
     u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
     u => `https://thingproxy.freeboard.io/fetch/${u}`,
-    u => `https://api.codetabs.com/v1/proxy?quest=${u}`,
   ];
   let lastErr;
   for (const makeUrl of proxies) {
@@ -686,11 +684,22 @@ async function notionFetch(url, options) {
       const r = await fetch(makeUrl(url), { ...options, headers: getHeaders() });
       const text = await r.text();
       const data = JSON.parse(text);
-      if (data && (data.object || data.results !== undefined)) return data;
+      if (data && (data.object || data.results !== undefined || data.type)) return data;
       lastErr = new Error(data.message || 'Bad response');
     } catch(e) { lastErr = e; continue; }
   }
   throw lastErr || new Error('All proxies failed');
+}
+
+// Fetch a single page property (for formula/rollup that need separate API call)
+async function fetchPageProperty(pageId, propertyId) {
+  try {
+    const data = await notionFetch(
+      `https://api.notion.com/v1/pages/${pageId}/properties/${propertyId}`,
+      { method: 'GET' }
+    );
+    return data;
+  } catch(e) { return null; }
 }
 
 async function notionQuery(dbId, filter, sorts) {
@@ -791,6 +800,73 @@ function switchSubTab(tab, btn) {
 // ═══════════════════════════════════════
 // TASKS
 // ═══════════════════════════════════════
+// Async fetch formula/rollup properties and update card
+async function fetchTaskDates(task) {
+  try {
+    let autoDue = null, projDue = null;
+
+    // Fetch Automatic Due (formula)
+    if (task.autoDuePropId) {
+      const data = await fetchPageProperty(task.id, task.autoDuePropId);
+      if (data?.formula?.type === 'string' && data.formula.string) {
+        const m = data.formula.string.match(/(\d{4})[\/-](\d{2})[\/-](\d{2})/);
+        if (m) autoDue = `${m[1]}-${m[2]}-${m[3]}`;
+      } else if (data?.formula?.type === 'date' && data.formula.date?.start) {
+        autoDue = fmtDate(data.formula.date.start);
+      } else if (data?.results?.length > 0) {
+        // paginated property
+        const r = data.results[0];
+        if (r?.formula?.string) {
+          const m = r.formula.string.match(/(\d{4})[\/-](\d{2})[\/-](\d{2})/);
+          if (m) autoDue = `${m[1]}-${m[2]}-${m[3]}`;
+        }
+      }
+    }
+
+    // Fetch Project Deadline (rollup)
+    if (task.projDuePropId) {
+      const data = await fetchPageProperty(task.id, task.projDuePropId);
+      if (data?.rollup?.type === 'date' && data.rollup.date?.start) {
+        projDue = fmtDate(data.rollup.date.start);
+      } else if (data?.rollup?.type === 'array') {
+        for (const item of (data.rollup.array || [])) {
+          const d = item.date?.start || item.formula?.date?.start;
+          if (d) { projDue = fmtDate(d); break; }
+        }
+      } else if (data?.results?.length > 0) {
+        const r = data.results[0];
+        if (r?.rollup?.date?.start) projDue = fmtDate(r.rollup.date.start);
+      }
+    }
+
+    if (!autoDue && !projDue && !task.leadDays) return; // nothing to update
+
+    // Update the card's date display
+    const card = document.getElementById('card-' + task.id);
+    if (!card) return;
+    const metaDiv = card.querySelector('.task-meta');
+    if (!metaDiv) return;
+
+    // Remove old date badge if any
+    metaDiv.querySelectorAll('.badge-date, .badge-lead').forEach(el => el.remove());
+
+    const dates = [autoDue, task.taskDue, projDue].filter(Boolean);
+    const uniqueDates = [...new Set(dates)];
+    if (uniqueDates.length) {
+      const span = document.createElement('span');
+      span.className = 'meta-badge badge-date';
+      span.textContent = '📅 ' + uniqueDates.join(' ｜ ');
+      metaDiv.appendChild(span);
+    }
+    if (task.leadDays && task.leadDays > 0) {
+      const span = document.createElement('span');
+      span.className = 'meta-badge badge-lead';
+      span.textContent = `🛡️ ${task.leadDays}天`;
+      metaDiv.appendChild(span);
+    }
+  } catch(e) { /* silent fail */ }
+}
+
 async function loadTasks() {
   const el = document.getElementById('taskList');
   el.innerHTML = '<div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>';
@@ -810,50 +886,20 @@ async function loadTasks() {
       const typeRaw = getProp(p, 'Type 任務類型', 'select') || '';
       const priority = getProp(p, 'Priority 任務優先值', 'select') || '';
       const tags = getProp(p, 'Tags 任務隸屬', 'multi_select') || [];
-      // Helper: extract any date string from unknown structure
-      function extractDate(obj) {
-        if (!obj) return null;
-        const str = JSON.stringify(obj);
-        const match = str.match(/"(\d{4})[\/-](\d{2})[\/-](\d{2})"/);
-        if (match) return `${match[1]}-${match[2]}-${match[3]}`;
-        return null;
-      }
-
-      // autoDue: Automatic Due 安全截止日 (formula → string with date)
-      const autoDueRaw = p['Automatic Due 安全截止日'];
-      let autoDue = null;
-      if (autoDueRaw?.formula?.string) {
-        const m = autoDueRaw.formula.string.match(/(\d{4})[\/-](\d{2})[\/-](\d{2})/);
-        if (m) autoDue = `${m[1]}-${m[2]}-${m[3]}`;
-      }
-      if (!autoDue) autoDue = extractDate(autoDueRaw?.formula?.date || autoDueRaw?.date);
-
-      // taskDue: Task Deadline 任務截止日 (date field)
+      // taskDue: Task Deadline 任務截止日 (direct date field - works fine)
       const taskDue = fmtDate(p['Task Deadline 任務截止日']?.date?.start);
 
-      // projDue: Project Deadline 專案截止日 (rollup from project DB)
-      const projDueRaw = p['Project Deadline 專案截止日'];
-      let projDue = null;
-      if (projDueRaw?.rollup?.date?.start) {
-        projDue = fmtDate(projDueRaw.rollup.date.start);
-      } else if (projDueRaw?.rollup?.array) {
-        for (const item of (projDueRaw.rollup.array || [])) {
-          const d = item.date?.start || item.formula?.date?.start;
-          if (d) { projDue = fmtDate(d); break; }
-          const m = (item.formula?.string || '').match(/(\d{4})[\/-](\d{2})[\/-](\d{2})/);
-          if (m) { projDue = `${m[1]}-${m[2]}-${m[3]}`; break; }
-        }
-      }
-      if (!projDue) projDue = extractDate(projDueRaw?.rollup);
-
-      // leadDays: Lead Day 安全準備時間 (number)
+      // leadDays: Lead Day 安全準備時間 (number - works fine)
       const leadDays = p['Lead Day 安全準備時間']?.number || null;
-      // DEBUG: log every task's date fields
-      console.log('TASK:', name.slice(0,15),
-        '| autoDue formula:', JSON.stringify(p['Automatic Due 安全截止日']?.formula),
-        '| projDue rollup:', JSON.stringify(p['Project Deadline 專案截止日']?.rollup),
-        '| leadDays:', leadDays,
-        '| RESULT autoDue:', autoDue, 'projDue:', projDue);
+
+      // autoDue & projDue: these are formula/rollup - need separate API calls
+      // We'll fetch them asynchronously after initial render
+      let autoDue = null;
+      let projDue = null;
+
+      // Store property IDs for async fetch
+      const autoDuePropId = p['Automatic Due 安全截止日']?.id;
+      const projDuePropId = p['Project Deadline 專案截止日']?.id;
 
       // alert: formula string, only show if meaningful
       const alertRaw = p['AI Due date 安全截止日概覽'];
@@ -939,6 +985,13 @@ async function loadTasks() {
       html = `<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-text">今天沒有排程任務！</div></div>`;
     }
     el.innerHTML = html;
+
+    // Async fetch formula/rollup dates for each task
+    const allTasks = Object.values(groups).flat();
+    for (const t of allTasks) {
+      fetchTaskDates(t);
+    }
+
   } catch(e) {
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗，請重新整理<br><small>${e.message}</small></div></div>`;
   }
