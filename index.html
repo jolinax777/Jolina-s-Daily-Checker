@@ -838,6 +838,14 @@ async function loadTasks() {
       }
 
       const leadDays = p['Lead Day 安全準備時間']?.number || null;
+      // DEBUG
+      if (!window._debugged) {
+        window._debugged = true;
+        console.log('autoDue raw formula:', JSON.stringify(p['Automatic Due 安全截止日']?.formula));
+        console.log('projDue raw rollup:', JSON.stringify(p['Project Deadline 專案截止日']?.rollup));
+        console.log('leadDays value:', leadDays);
+        console.log('autoDue result:', autoDue, '| taskDue:', taskDue, '| projDue:', projDue);
+      }
 
       // alert: formula string, only show if meaningful
       const alertRaw = p['AI Due date 安全截止日概覽'];
