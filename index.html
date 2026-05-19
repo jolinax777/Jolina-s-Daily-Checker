@@ -886,20 +886,33 @@ async function loadTasks() {
       const typeRaw = getProp(p, 'Type 任務類型', 'select') || '';
       const priority = getProp(p, 'Priority 任務優先值', 'select') || '';
       const tags = getProp(p, 'Tags 任務隸屬', 'multi_select') || [];
-      // taskDue: Task Deadline 任務截止日 (direct date field - works fine)
+      // taskDue: Task Deadline 任務截止日 (date field)
       const taskDue = fmtDate(p['Task Deadline 任務截止日']?.date?.start);
 
-      // leadDays: Lead Day 安全準備時間 (number - works fine)
+      // leadDays: Lead Day 安全準備時間 (number)
       const leadDays = p['Lead Day 安全準備時間']?.number || null;
 
-      // autoDue & projDue: these are formula/rollup - need separate API calls
-      // We'll fetch them asynchronously after initial render
+      // autoDue: Automatic Due 安全截止日 (formula → string "2025/12/11")
       let autoDue = null;
-      let projDue = null;
+      const autoDueStr = p['Automatic Due 安全截止日']?.formula?.string || '';
+      if (autoDueStr) {
+        const m = autoDueStr.match(/(\d{4})[\/-](\d{2})[\/-](\d{2})/);
+        if (m) autoDue = `${m[1]}-${m[2]}-${m[3]}`;
+      }
 
-      // Store property IDs for async fetch
-      const autoDuePropId = p['Automatic Due 安全截止日']?.id;
-      const projDuePropId = p['Project Deadline 專案截止日']?.id;
+      // projDue: Project Deadline 專案截止日 (rollup → date)
+      let projDue = null;
+      const projRollup = p['Project Deadline 專案截止日']?.rollup;
+      if (projRollup?.type === 'date' && projRollup.date?.start) {
+        projDue = fmtDate(projRollup.date.start);
+      } else if (projRollup?.type === 'array') {
+        for (const item of (projRollup.array || [])) {
+          if (item.date?.start) { projDue = fmtDate(item.date.start); break; }
+        }
+      }
+
+      const autoDuePropId = null; // no longer needed
+      const projDuePropId = null;
 
       // alert: formula string, only show if meaningful
       const alertRaw = p['AI Due date 安全截止日概覽'];
@@ -985,12 +998,6 @@ async function loadTasks() {
       html = `<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-text">今天沒有排程任務！</div></div>`;
     }
     el.innerHTML = html;
-
-    // Async fetch formula/rollup dates for each task
-    const allTasks = Object.values(groups).flat();
-    for (const t of allTasks) {
-      fetchTaskDates(t);
-    }
 
   } catch(e) {
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗，請重新整理<br><small>${e.message}</small></div></div>`;
