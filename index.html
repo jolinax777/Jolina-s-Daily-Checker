@@ -815,6 +815,16 @@ async function loadTasks() {
       const taskDue = fmtDate(getProp(p, 'Task Deadline 任務截止日', 'date'));
       const projDue = fmtDate(getProp(p, 'Project Deadline 專案截止日', 'rollup_date'));
       const leadDays = getProp(p, 'Lead Day 安全準備時間', 'number');
+      // Debug: log first task's props to console
+      if (data.results.indexOf(page) === 0) {
+        console.log('=== TASK PROPS DEBUG ===');
+        console.log('autoDue raw:', p['Automatic Due 安全截止日']);
+        console.log('taskDue raw:', p['Task Deadline 任務截止日']);
+        console.log('projDue raw:', p['Project Deadline 專案截止日']);
+        console.log('leadDays raw:', p['Lead Day 安全準備時間']);
+        console.log('alert raw:', p['AI Due date 安全截止日概覽']);
+        console.log('autoDue parsed:', autoDue, 'taskDue:', taskDue, 'projDue:', projDue);
+      }
 
       let group = 'Other';
       if (typeRaw.includes('S1')) group = 'S1';
