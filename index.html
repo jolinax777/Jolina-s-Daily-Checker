@@ -810,42 +810,44 @@ async function loadTasks() {
       const typeRaw = getProp(p, 'Type 任務類型', 'select') || '';
       const priority = getProp(p, 'Priority 任務優先值', 'select') || '';
       const tags = getProp(p, 'Tags 任務隸屬', 'multi_select') || [];
-      // autoDue: formula returns styled text like "2025/12/11", extract and normalize to YYYY-MM-DD
+      // Helper: extract any date string from unknown structure
+      function extractDate(obj) {
+        if (!obj) return null;
+        const str = JSON.stringify(obj);
+        const match = str.match(/"(\d{4})[\/-](\d{2})[\/-](\d{2})"/);
+        if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+        return null;
+      }
+
+      // autoDue: Automatic Due 安全截止日 (formula → string with date)
       const autoDueRaw = p['Automatic Due 安全截止日'];
       let autoDue = null;
-      if (autoDueRaw?.formula?.type === 'string' && autoDueRaw.formula.string) {
-        const str = autoDueRaw.formula.string;
-        // Match date in YYYY/MM/DD or YYYY-MM-DD format
-        const match = str.match(/(\d{4})[\/-](\d{2})[\/-](\d{2})/);
-        if (match) autoDue = `${match[1]}-${match[2]}-${match[3]}`;
-      } else if (autoDueRaw?.formula?.type === 'date' && autoDueRaw.formula.date?.start) {
-        autoDue = fmtDate(autoDueRaw.formula.date.start);
+      if (autoDueRaw?.formula?.string) {
+        const m = autoDueRaw.formula.string.match(/(\d{4})[\/-](\d{2})[\/-](\d{2})/);
+        if (m) autoDue = `${m[1]}-${m[2]}-${m[3]}`;
       }
+      if (!autoDue) autoDue = extractDate(autoDueRaw?.formula?.date || autoDueRaw?.date);
 
-      // taskDue: direct date field
-      const taskDue = fmtDate(getProp(p, 'Task Deadline 任務截止日', 'date'));
+      // taskDue: Task Deadline 任務截止日 (date field)
+      const taskDue = fmtDate(p['Task Deadline 任務截止日']?.date?.start);
 
-      // projDue: rollup from linked Project database — can be date rollup or array
+      // projDue: Project Deadline 專案截止日 (rollup from project DB)
       const projDueRaw = p['Project Deadline 專案截止日'];
       let projDue = null;
-      if (projDueRaw?.rollup?.type === 'date' && projDueRaw.rollup.date?.start) {
+      if (projDueRaw?.rollup?.date?.start) {
         projDue = fmtDate(projDueRaw.rollup.date.start);
-      } else if (projDueRaw?.rollup?.type === 'array' && projDueRaw.rollup.array?.length > 0) {
-        for (const item of projDueRaw.rollup.array) {
-          const d = item.date?.start || item.formula?.date?.start || item.formula?.string?.match(/(\d{4})[\/-](\d{2})[\/-](\d{2})/)?.[0];
+      } else if (projDueRaw?.rollup?.array) {
+        for (const item of (projDueRaw.rollup.array || [])) {
+          const d = item.date?.start || item.formula?.date?.start;
           if (d) { projDue = fmtDate(d); break; }
+          const m = (item.formula?.string || '').match(/(\d{4})[\/-](\d{2})[\/-](\d{2})/);
+          if (m) { projDue = `${m[1]}-${m[2]}-${m[3]}`; break; }
         }
       }
+      if (!projDue) projDue = extractDate(projDueRaw?.rollup);
 
+      // leadDays: Lead Day 安全準備時間 (number)
       const leadDays = p['Lead Day 安全準備時間']?.number || null;
-      // DEBUG
-      if (!window._debugged) {
-        window._debugged = true;
-        console.log('autoDue raw formula:', JSON.stringify(p['Automatic Due 安全截止日']?.formula));
-        console.log('projDue raw rollup:', JSON.stringify(p['Project Deadline 專案截止日']?.rollup));
-        console.log('leadDays value:', leadDays);
-        console.log('autoDue result:', autoDue, '| taskDue:', taskDue, '| projDue:', projDue);
-      }
 
       // alert: formula string, only show if meaningful
       const alertRaw = p['AI Due date 安全截止日概覽'];
