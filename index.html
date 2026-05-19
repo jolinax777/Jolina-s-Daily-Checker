@@ -848,6 +848,12 @@ async function loadTasks() {
 
       // leadDays: Lead Day 安全準備時間 (number)
       const leadDays = p['Lead Day 安全準備時間']?.number || null;
+      // DEBUG: log every task's date fields
+      console.log('TASK:', name.slice(0,15),
+        '| autoDue formula:', JSON.stringify(p['Automatic Due 安全截止日']?.formula),
+        '| projDue rollup:', JSON.stringify(p['Project Deadline 專案截止日']?.rollup),
+        '| leadDays:', leadDays,
+        '| RESULT autoDue:', autoDue, 'projDue:', projDue);
 
       // alert: formula string, only show if meaningful
       const alertRaw = p['AI Due date 安全截止日概覽'];
