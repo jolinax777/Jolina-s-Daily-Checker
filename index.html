@@ -168,7 +168,10 @@ body {
 .badge-priority-3 { background: rgba(201,168,76,0.2); color: var(--gold); }
 .badge-priority-4 { background: rgba(46,122,79,0.2); color: var(--green-light); }
 .badge-tag { background: rgba(74,156,199,0.15); color: var(--blue-light); border: 1px solid rgba(74,156,199,0.2); }
-.badge-alert { background: rgba(198,40,40,0.15); color: #ef9a9a; font-size: 0.68rem; }
+.badge-alert { background: rgba(198,40,40,0.12); color: #c0392b; font-size: 0.72rem; font-weight:600; }
+.badge-date { background: rgba(26,95,168,0.1); color: #1a5fa8; border: 1px solid rgba(26,95,168,0.2); }
+.badge-lead { background: rgba(90,125,150,0.1); color: #3d5a72; border: 1px solid rgba(90,125,150,0.2); }
+.task-alert { font-size: 0.75rem; color: #c0392b; margin-top: 5px; font-weight: 500; }
 
 .task-action-btn {
   background: transparent; border: none; color: var(--text3);
@@ -725,7 +728,22 @@ function getProp(props, name, type) {
     if (type === 'number') return p.number;
     if (type === 'multi_select') return p.multi_select?.map(x => x.name) || [];
     if (type === 'formula_str') return p.formula?.string || '';
+    if (type === 'formula_date') return p.formula?.date?.start || null;
+    if (type === 'rollup_date') {
+      if (p.rollup?.date?.start) return p.rollup.date.start;
+      const arr = p.rollup?.array || [];
+      if (arr.length > 0) {
+        if (arr[0].date?.start) return arr[0].date.start;
+        if (arr[0].formula?.date?.start) return arr[0].formula.date.start;
+      }
+      return null;
+    }
   } catch { return null; }
+}
+
+function fmtDate(d) {
+  if (!d) return null;
+  return d.split('T')[0];
 }
 
 function showToast(msg, dur=2000) {
@@ -793,6 +811,10 @@ async function loadTasks() {
       const priority = getProp(p, 'Priority 任務優先值', 'select') || '';
       const tags = getProp(p, 'Tags 任務隸屬', 'multi_select') || [];
       const alert = getProp(p, 'AI Due date 安全截止日概覽', 'formula_str') || '';
+      const autoDue = fmtDate(getProp(p, 'Automatic Due 安全截止日', 'formula_date') || getProp(p, 'Automatic Due 安全截止日', 'date'));
+      const taskDue = fmtDate(getProp(p, 'Task Deadline 任務截止日', 'date'));
+      const projDue = fmtDate(getProp(p, 'Project Deadline 專案截止日', 'rollup_date'));
+      const leadDays = getProp(p, 'Lead Day 安全準備時間', 'number');
 
       let group = 'Other';
       if (typeRaw.includes('S1')) group = 'S1';
@@ -840,8 +862,16 @@ async function loadTasks() {
         const prioShort = t.priority.split('－')[0] || '';
         const tagsHtml = t.tags.map(tag => `<span class="meta-badge badge-tag">${tag}</span>`).join('');
         const alertHtml = t.alert && !t.alert.includes('No Deadline') && !t.alert.includes('暫無')
-          ? `<span class="meta-badge badge-alert">⏰ ${t.alert}</span>` : '';
+          ? `<span class="meta-badge badge-alert">⚠️ ${t.alert}</span>` : '';
         const statusShort = t.status.replace(/[🍶🥛☕🍷🧋🍵]/g,'').trim();
+
+        // Build date badges
+        const dates = [t.autoDue, t.taskDue, t.projDue].filter(Boolean);
+        const uniqueDates = [...new Set(dates)];
+        const datesHtml = uniqueDates.length
+          ? `<span class="meta-badge badge-date">📅 ${uniqueDates.join(' ｜ ')}</span>` : '';
+        const leadHtml = t.leadDays && t.leadDays > 0
+          ? `<span class="meta-badge badge-lead">🛡️ ${t.leadDays}天</span>` : '';
 
         html += `
 <div class="task-card ${cardClass}" id="card-${t.id}">
