@@ -506,9 +506,39 @@ body {
         <button class="meta-badge badge-tag" style="padding:6px 14px; cursor:pointer; border:none;" data-tag="FAMILY" onclick="toggleTag(this)">FAMILY</button>
       </div>
     </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">截止日期（選填）</label>
+        <input class="form-input" id="f_deadline" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">🛡️ 安全準備天數</label>
+        <input class="form-input" id="f_lead" type="number" value="0" min="0" step="1" placeholder="0">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">🔗 關聯母任務（選填）</label>
+        <select class="form-select" id="f_parent">
+          <option value="">(無)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">🔗 附屬任務（選填）</label>
+        <select class="form-select" id="f_sub">
+          <option value="">(無)</option>
+        </select>
+      </div>
+    </div>
     <div class="form-group">
-      <label class="form-label">截止日期（選填）</label>
-      <input class="form-input" id="f_deadline" type="date">
+      <label class="form-label">🛒 關聯購物清單（選填，可多選）</label>
+      <div class="chip-group" id="shop-chips" style="min-height:32px;">
+        <span style="font-size:0.78rem;color:var(--text3);">載入中...</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">🛒 新增購物物品（自動建立）</label>
+      <input class="form-input" id="f_new_shop" placeholder="輸入物品名稱...">
     </div>
     <button class="btn-primary" onclick="submitAddTask()">✨ 新增任務</button>
   </div>
@@ -784,6 +814,7 @@ function switchPage(page, btn) {
 
   if (page === 'shop') loadShopping();
   if (page === 'cal') loadCalendar();
+  if (page === 'add') loadAddForm();
 }
 
 function switchSubTab(tab, btn) {
@@ -886,20 +917,33 @@ async function loadTasks() {
       const typeRaw = getProp(p, 'Type 任務類型', 'select') || '';
       const priority = getProp(p, 'Priority 任務優先值', 'select') || '';
       const tags = getProp(p, 'Tags 任務隸屬', 'multi_select') || [];
-      // taskDue: Task Deadline 任務截止日 (direct date field - works fine)
+      // taskDue: Task Deadline 任務截止日 (date field)
       const taskDue = fmtDate(p['Task Deadline 任務截止日']?.date?.start);
 
-      // leadDays: Lead Day 安全準備時間 (number - works fine)
+      // leadDays: Lead Day 安全準備時間 (number)
       const leadDays = p['Lead Day 安全準備時間']?.number || null;
 
-      // autoDue & projDue: these are formula/rollup - need separate API calls
-      // We'll fetch them asynchronously after initial render
+      // autoDue: Automatic Due 安全截止日 (formula → string "2025/12/11")
       let autoDue = null;
-      let projDue = null;
+      const autoDueStr = p['Automatic Due 安全截止日']?.formula?.string || '';
+      if (autoDueStr) {
+        const m = autoDueStr.match(/(\d{4})[\/-](\d{2})[\/-](\d{2})/);
+        if (m) autoDue = `${m[1]}-${m[2]}-${m[3]}`;
+      }
 
-      // Store property IDs for async fetch
-      const autoDuePropId = p['Automatic Due 安全截止日']?.id;
-      const projDuePropId = p['Project Deadline 專案截止日']?.id;
+      // projDue: Project Deadline 專案截止日 (rollup → date)
+      let projDue = null;
+      const projRollup = p['Project Deadline 專案截止日']?.rollup;
+      if (projRollup?.type === 'date' && projRollup.date?.start) {
+        projDue = fmtDate(projRollup.date.start);
+      } else if (projRollup?.type === 'array') {
+        for (const item of (projRollup.array || [])) {
+          if (item.date?.start) { projDue = fmtDate(item.date.start); break; }
+        }
+      }
+
+      const autoDuePropId = null; // no longer needed
+      const projDuePropId = null;
 
       // alert: formula string, only show if meaningful
       const alertRaw = p['AI Due date 安全截止日概覽'];
@@ -985,12 +1029,6 @@ async function loadTasks() {
       html = `<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-text">今天沒有排程任務！</div></div>`;
     }
     el.innerHTML = html;
-
-    // Async fetch formula/rollup dates for each task
-    const allTasks = Object.values(groups).flat();
-    for (const t of allTasks) {
-      fetchTaskDates(t);
-    }
 
   } catch(e) {
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗，請重新整理<br><small>${e.message}</small></div></div>`;
@@ -1178,6 +1216,39 @@ function toggleTag(btn) {
   btn.style.fontWeight = selected ? '700' : '';
 }
 
+// Populate task relation selects and shop chips
+async function loadAddForm() {
+  // Load active tasks for parent/sub selects
+  try {
+    const data = await notionQuery(DB.TASK, { property: 'Archive 封存', checkbox: { equals: false } });
+    const tasks = data.results || [];
+    const opts = tasks.map(t => {
+      const name = t.properties['Tasks Name']?.title?.[0]?.plain_text || '未命名';
+      return `<option value="${t.id}">${name.length > 28 ? name.slice(0,28)+'…' : name}</option>`;
+    }).join('');
+    const blankOpt = '<option value="">(無)</option>';
+    document.getElementById('f_parent').innerHTML = blankOpt + opts;
+    document.getElementById('f_sub').innerHTML = blankOpt + opts;
+  } catch(e) { /* keep defaults */ }
+
+  // Load active shopping items
+  try {
+    const shopData = await notionQuery(DB.SHOPPING, { property: '封存', checkbox: { equals: false } });
+    const items = shopData.results || [];
+    const chipContainer = document.getElementById('shop-chips');
+    if (!items.length) {
+      chipContainer.innerHTML = '<span style="font-size:0.78rem;color:var(--text3);">目前購物清單是空的</span>';
+    } else {
+      chipContainer.innerHTML = items.map(s => {
+        const name = s.properties['採買物品']?.title?.[0]?.plain_text || '未知';
+        return `<button class="multi-chip" data-group="shop" data-id="${s.id}" data-val="${name.replace(/"/g,'&quot;')}" onclick="toggleChip(this)">${name}</button>`;
+      }).join('');
+    }
+  } catch(e) {
+    document.getElementById('shop-chips').innerHTML = '<span style="font-size:0.78rem;color:var(--text3);">載入失敗</span>';
+  }
+}
+
 async function submitAddTask() {
   const body = document.getElementById('f_body').value.trim();
   if (!body) { showToast('⚠️ 請填寫任務內容'); return; }
@@ -1198,8 +1269,30 @@ async function submitAddTask() {
     'Time Needes 預估時間': { select: { name: time } },
     'Status 任務階段': { status: { name: '🧋未開始' } }
   };
+  const leadDays = parseInt(document.getElementById('f_lead').value || '0') || 0;
+  const parentId = document.getElementById('f_parent').value;
+  const subId = document.getElementById('f_sub').value;
+  const selectedShopIds = [...document.querySelectorAll('#shop-chips .multi-chip.selected')].map(b => b.dataset.id);
+  const newShopItem = document.getElementById('f_new_shop').value.trim();
+
   if (date) props['Due 排程執行日'] = { date: { start: date } };
   if (deadline) props['Task Deadline 任務截止日'] = { date: { start: deadline } };
+  if (leadDays > 0) props['Lead Day 安全準備時間'] = { number: leadDays };
+  if (parentId) props['Parent Tasks 關聯任務'] = { relation: [{ id: parentId }] };
+  if (subId) props['Subtasks 附屬任務'] = { relation: [{ id: subId }] };
+
+  // Handle new shopping item creation
+  const shopIds = [...selectedShopIds];
+  if (newShopItem) {
+    showToast('🛒 建立購物項目...');
+    const shopRes = await notionCreate(DB.SHOPPING, {
+      '採買物品': { title: [{ text: { content: newShopItem } }] },
+      '購買狀態': { status: { name: '待採買' } },
+      '封存': { checkbox: false }
+    });
+    if (shopRes?.id) shopIds.push(shopRes.id);
+  }
+  if (shopIds.length > 0) props['Shopping關聯採買'] = { relation: shopIds.map(id => ({ id })) };
 
   showToast('✨ 新增中...');
   await notionCreate(DB.TASK, props);
@@ -1209,10 +1302,17 @@ async function submitAddTask() {
   document.getElementById('f_body').value = '';
   document.getElementById('f_date').value = '';
   document.getElementById('f_deadline').value = '';
+  document.getElementById('f_lead').value = '0';
+  document.getElementById('f_new_shop').value = '';
+  document.getElementById('f_parent').value = '';
+  document.getElementById('f_sub').value = '';
   document.querySelectorAll('#tagSelector button').forEach(b => {
     b.classList.remove('selected');
     b.style.background = '';
     b.style.fontWeight = '';
+  });
+  document.querySelectorAll('#shop-chips .multi-chip').forEach(b => {
+    b.classList.remove('selected');
   });
   // Switch to daily tasks
   switchPage('daily', document.getElementById('nav-daily'));
@@ -1245,6 +1345,15 @@ async function loadJournal() {
     const statusOpts = ['- 🌕 高能', '- 🌓 普通', '- 🌑 低能'];
     const currStatus = getSelect('今天的狀態');
 
+    // Parse wake time
+    let currWakeTime = '08:00';
+    try {
+      const wakeRaw = p['起床時間']?.date?.start || '';
+      if (wakeRaw && wakeRaw.includes('T')) {
+        currWakeTime = wakeRaw.split('T')[1].slice(0, 5);
+      }
+    } catch(e) {}
+
     el.innerHTML = `
 <div class="journal-status-row">
   ${statusOpts.map(s => `<div class="status-option ${s===currStatus?'selected':''}" onclick="selectJournalStatus(this,'${s}')">${s}</div>`).join('')}
@@ -1254,6 +1363,12 @@ async function loadJournal() {
   <input class="form-input" id="j_desc" value="${getRT('今天的狀態（簡述）').replace(/"/g,'&quot;')}">
 </div>
 <div class="section-title" style="font-size:0.85rem;">☀️ Morning</div>
+<div class="form-row">
+  <div class="form-group">
+    <label class="form-label">🌅 起床時間</label>
+    <input class="form-input" id="j_wake" type="time" value="${currWakeTime}">
+  </div>
+</div>
 <div class="form-group">
   <label class="form-label">今天大目標（一件事）</label>
   <textarea class="form-textarea" id="j_focus">${getRT('一定要完成的（一件事）')}</textarea>
@@ -1288,13 +1403,16 @@ function selectJournalStatus(el, status) {
 async function saveJournal() {
   if (!journalPageId) return;
   showToast('💾 儲存中...');
+  const wakeVal = document.getElementById('j_wake')?.value || '08:00';
+  const wakeDatetime = `${today()}T${wakeVal}:00`;
   const updates = {
     '今天的狀態': { select: { name: journalData.status || '- 🌓 普通' } },
     '今天的狀態（簡述）': { rich_text: [{ text: { content: document.getElementById('j_desc').value } }] },
     '一定要完成的（一件事）': { rich_text: [{ text: { content: document.getElementById('j_focus').value } }] },
     '感謝三件事－穩定情緒': { rich_text: [{ text: { content: document.getElementById('j_thankful').value } }] },
     '今日反思－反省一件事': { rich_text: [{ text: { content: document.getElementById('j_reflection').value } }] },
-    '設定明天（聚焦一件事）': { rich_text: [{ text: { content: document.getElementById('j_tomorrow').value } }] }
+    '設定明天（聚焦一件事）': { rich_text: [{ text: { content: document.getElementById('j_tomorrow').value } }] },
+    '起床時間': { date: { start: wakeDatetime } }
   };
   await notionUpdate(journalPageId, updates);
   showToast('🎉 日記已儲存！');
@@ -1353,6 +1471,79 @@ async function loadHabits() {
       }
       html += '</div>';
     }
+    // ── 數據欄位 section ──
+    const getMultiVal = (propName) => {
+      try { return (p[propName]?.multi_select || []).map(x => x.name); } catch { return []; }
+    };
+    const getNumVal = (propName) => {
+      try { return p[propName]?.number ?? 0; } catch { return 0; }
+    };
+    const getTextVal2 = (propName) => {
+      try { return p[propName]?.rich_text?.[0]?.plain_text || ''; } catch { return ''; }
+    };
+    const getUrlVal = (propName) => {
+      try { return p[propName]?.url || ''; } catch { return ''; }
+    };
+
+    const MEDIA_OPTIONS = ['ADHD','音樂帳號','小秘密','潮巢玩居'];
+    const MED_OPTIONS = ['B群','魚油','艾益','海藻鎂','葉黃素','四物飲','小藍錠（1顆）','小藍錠（1.5顆)','小藍錠（2顆)','小紅錠（1顆）','小紅錠（2顆）'];
+    const SPORT_OPTIONS = ['重訓 Gym','瑜珈 Yoga','爬山 Hiking','飛輪 Cycling','慢跑 Jogging','散步 Strolling','游泳 Swimming','拉身 Quick Streching'];
+
+    const currMedia = getMultiVal('經營項目');
+    const currMeds = getMultiVal('藥+保健食品');
+    const currSports = getMultiVal('運動類型');
+    const currIncome = getNumVal('日收入');
+    const currExpense = getNumVal('日花費');
+    const currBook = getTextVal2('書籍名稱');
+    const currNews = getUrlVal('新聞網址');
+    const currCourse = getUrlVal('學習課程');
+
+    const renderMultiChips = (id, options, selected) => {
+      return options.map(opt => {
+        const isSelected = selected.includes(opt);
+        return `<button class="multi-chip ${isSelected?'selected':''}" data-group="${id}" data-val="${opt.replace(/"/g,'&quot;')}" onclick="toggleChip(this)">${opt}</button>`;
+      }).join('');
+    };
+
+    html += `
+<div class="habit-section-title">💊 生活數據與經營</div>
+<div class="form-group">
+  <label class="form-label">經營項目</label>
+  <div class="chip-group" id="chips-media">${renderMultiChips('media', MEDIA_OPTIONS, currMedia)}</div>
+</div>
+<div class="form-group">
+  <label class="form-label">藥＋保健食品</label>
+  <div class="chip-group" id="chips-meds">${renderMultiChips('meds', MED_OPTIONS, currMeds)}</div>
+</div>
+<div class="form-group">
+  <label class="form-label">運動類型</label>
+  <div class="chip-group" id="chips-sports">${renderMultiChips('sports', SPORT_OPTIONS, currSports)}</div>
+</div>
+<div class="form-row">
+  <div class="form-group">
+    <label class="form-label">💰 日收入</label>
+    <input class="form-input" id="h_income" type="number" value="${currIncome}" min="0" step="1">
+  </div>
+  <div class="form-group">
+    <label class="form-label">💸 日花費</label>
+    <input class="form-input" id="h_expense" type="number" value="${currExpense}" min="0" step="1">
+  </div>
+</div>
+<div class="habit-section-title">📖 閱讀與學習</div>
+<div class="form-group">
+  <label class="form-label">📖 書籍名稱</label>
+  <input class="form-input" id="h_book" value="${currBook.replace(/"/g,'&quot;')}">
+</div>
+<div class="form-group">
+  <label class="form-label">🔗 新聞網址</label>
+  <input class="form-input" id="h_news" type="url" value="${currNews}" placeholder="https://...">
+</div>
+<div class="form-group">
+  <label class="form-label">💻 學習課程（網址）</label>
+  <input class="form-input" id="h_course" type="url" value="${currCourse}" placeholder="https://...">
+</div>
+`;
+
     html += `<button class="btn-primary" onclick="saveHabits()" style="margin-top:16px;">💾 儲存打卡</button>`;
     el.innerHTML = html;
   } catch(e) {
@@ -1367,6 +1558,14 @@ function toggleHabit(key, el) {
   el.querySelector('.habit-label').style.color = habitData[key] ? 'var(--green-light)' : '';
 }
 
+function getChipValues(groupId) {
+  return [...document.querySelectorAll(`.multi-chip[data-group="${groupId}"].selected`)].map(b => b.dataset.val);
+}
+
+function toggleChip(btn) {
+  btn.classList.toggle('selected');
+}
+
 async function saveHabits() {
   if (!habitPageId) return;
   showToast('💾 儲存中...');
@@ -1374,6 +1573,24 @@ async function saveHabits() {
   for (const h of HABITS) {
     updates[h.key] = { checkbox: habitData[h.key] || false };
   }
+  // Data fields
+  const mediaVals = getChipValues('media');
+  const medsVals = getChipValues('meds');
+  const sportsVals = getChipValues('sports');
+  updates['經營項目'] = { multi_select: mediaVals.map(n => ({ name: n })) };
+  updates['藥+保健食品'] = { multi_select: medsVals.map(n => ({ name: n })) };
+  updates['運動類型'] = { multi_select: sportsVals.map(n => ({ name: n })) };
+  const income = parseFloat(document.getElementById('h_income')?.value || '0') || 0;
+  const expense = parseFloat(document.getElementById('h_expense')?.value || '0') || 0;
+  updates['日收入'] = { number: income };
+  updates['日花費'] = { number: expense };
+  const book = document.getElementById('h_book')?.value || '';
+  updates['書籍名稱'] = { rich_text: [{ text: { content: book } }] };
+  const news = document.getElementById('h_news')?.value.trim() || '';
+  updates['新聞網址'] = { url: news || null };
+  const course = document.getElementById('h_course')?.value.trim() || '';
+  updates['學習課程'] = { url: course || null };
+
   await notionUpdate(habitPageId, updates);
   showToast('🎉 習慣已儲存！');
 }
