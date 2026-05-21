@@ -487,6 +487,82 @@ body {
 .cal-task-chip.archived { text-decoration: line-through; opacity: 0.5; color: var(--text3); }
 .cal-task-chip.cancelled { background: rgba(198,40,40,0.1); color: #ef5350; }
 
+/* ── DATE PICKER BAR (tasks / journal / habits) ── */
+.date-nav-bar {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px; background: var(--surface);
+  border: 1px solid var(--surface3); border-radius: var(--radius-sm);
+  padding: 7px 10px;
+}
+.date-nav-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--surface2); border: 1px solid var(--surface3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 0.8rem; color: var(--text2);
+  flex-shrink: 0; transition: all 0.15s;
+}
+.date-nav-btn:active { background: var(--wine); color: white; }
+.date-nav-label {
+  flex: 1; text-align: center; font-size: 0.82rem; font-weight: 600;
+  color: var(--text); cursor: pointer;
+}
+.date-nav-label.today-label { color: var(--wine-light); }
+.date-nav-input { display: none; border: none; background: transparent; font-size: 0.82rem; color: var(--text); font-family: var(--font-body); width: 0; }
+.date-nav-today {
+  font-size: 0.72rem; padding: 3px 8px; border-radius: 10px;
+  background: var(--wine-glow); color: var(--wine-light);
+  cursor: pointer; white-space: nowrap; font-weight: 600;
+  border: none; font-family: var(--font-body);
+  flex-shrink: 0;
+}
+.date-nav-today:active { background: var(--wine); color: white; }
+
+/* ── CALENDAR MONTH INLINE TASKS ── */
+.cal-month-cell {
+  background: var(--surface); border: 1px solid var(--surface3);
+  border-radius: 6px; padding: 3px 2px;
+  min-height: 70px; cursor: pointer; transition: border-color 0.15s;
+  position: relative; overflow: hidden;
+}
+.cal-month-task {
+  display: block; font-size: 0.6rem; line-height: 1.2;
+  padding: 1px 3px; border-radius: 3px; margin: 1px 1px 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-weight: 500; cursor: pointer;
+}
+.cal-month-task.doing    { background: rgba(42,127,212,0.18); color: var(--blue-light); }
+.cal-month-task.todo     { background: var(--surface2); color: var(--text2); }
+.cal-month-task.done     { background: rgba(40,168,122,0.12); color: var(--green-light); text-decoration: line-through; }
+.cal-month-task.archived { background: var(--surface2); color: var(--text3); text-decoration: line-through; opacity: 0.6; }
+.cal-month-task.cancelled{ background: rgba(198,40,40,0.1); color: #ef5350; }
+.cal-month-more { font-size: 0.58rem; color: var(--text3); text-align: center; padding: 1px 0; }
+.cal-month-time { font-size: 0.55rem; opacity: 0.7; margin-right: 2px; }
+
+/* ── TASK EDIT MODAL (calendar) ── */
+.task-edit-modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(13,33,55,0.45); z-index: 500;
+  align-items: flex-end; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.task-edit-modal.open { display: flex; animation: fadeIn 0.2s ease; }
+.task-edit-panel {
+  background: var(--surface); border-radius: 24px 24px 0 0;
+  width: 100%; max-height: 80dvh; overflow-y: auto;
+  padding: 20px 20px calc(20px + var(--safe-bottom));
+}
+.task-edit-name { font-size: 0.9rem; font-weight: 600; color: var(--text); margin-bottom: 14px; line-height: 1.4; }
+
+/* ── COMBO STATUS BADGE ── */
+.combo-status-tag {
+  display: inline-block; font-size: 0.68rem; padding: 1px 6px;
+  border-radius: 8px; margin-left: 6px; font-weight: 500; opacity: 0.85;
+}
+.status-active   { background: rgba(42,127,212,0.15); color: var(--blue-light); }
+.status-done     { background: rgba(40,168,122,0.12); color: var(--green-light); }
+.status-pending  { background: var(--surface2); color: var(--text3); }
+.status-paused   { background: rgba(180,100,30,0.12); color: var(--orange-light); }
+
 /* ── MULTI-CHIP (habit page selectors) ── */
 .chip-group {
   display: flex; flex-wrap: wrap; gap: 6px;
@@ -558,18 +634,39 @@ body {
 
     <!-- Sub: Tasks -->
     <div id="sub-tasks">
-      <div class="section-title">今日作戰計畫</div>
+      <div class="date-nav-bar" id="taskDateNav">
+        <button class="date-nav-btn" onclick="shiftTaskDate(-1)">◀</button>
+        <span class="date-nav-label" id="taskDateLabel" onclick="toggleTaskDatePicker()"></span>
+        <input type="date" id="taskDatePicker" class="date-nav-input" onchange="onTaskDatePick(this.value)">
+        <button class="date-nav-today" onclick="jumpTaskToday()">今天</button>
+        <button class="date-nav-btn" onclick="shiftTaskDate(1)">▶</button>
+      </div>
+      <div class="section-title" id="taskSectionTitle">今日作戰計畫</div>
       <div id="taskList"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
     </div>
 
     <!-- Sub: Journal -->
     <div id="sub-journal" class="hidden">
-      <div class="section-title">今日日記</div>
+      <div class="date-nav-bar" id="journalDateNav">
+        <button class="date-nav-btn" onclick="shiftJournalDate(-1)">◀</button>
+        <span class="date-nav-label" id="journalDateLabel" onclick="toggleJournalDatePicker()"></span>
+        <input type="date" id="journalDatePicker" class="date-nav-input" onchange="onJournalDatePick(this.value)">
+        <button class="date-nav-today" onclick="jumpJournalToday()">今天</button>
+        <button class="date-nav-btn" onclick="shiftJournalDate(1)">▶</button>
+      </div>
+      <div class="section-title">日記 / 晨間反思</div>
       <div id="journalContent"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
     </div>
 
     <!-- Sub: Habits -->
     <div id="sub-habits" class="hidden">
+      <div class="date-nav-bar" id="habitDateNav">
+        <button class="date-nav-btn" onclick="shiftHabitDate(-1)">◀</button>
+        <span class="date-nav-label" id="habitDateLabel" onclick="toggleHabitDatePicker()"></span>
+        <input type="date" id="habitDatePicker" class="date-nav-input" onchange="onHabitDatePick(this.value)">
+        <button class="date-nav-today" onclick="jumpHabitToday()">今天</button>
+        <button class="date-nav-btn" onclick="shiftHabitDate(1)">▶</button>
+      </div>
       <div class="section-title">習慣打卡</div>
       <div id="habitContent"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
     </div>
@@ -734,6 +831,37 @@ body {
   </div>
 
 </main>
+
+<!-- TASK EDIT MODAL (from calendar) -->
+<div class="task-edit-modal" id="taskEditModal" onclick="closeTaskEdit()">
+  <div class="task-edit-panel" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="task-edit-name" id="taskEditName"></div>
+    <div class="form-group">
+      <label class="form-label">📅 執行日期</label>
+      <input class="form-input" id="te_date" type="date">
+    </div>
+    <div class="form-group">
+      <label class="form-label">⏰ 詳細時間</label>
+      <input class="form-input" id="te_time" type="time">
+    </div>
+    <div class="form-group">
+      <label class="form-label">狀態</label>
+      <select class="form-select" id="te_status">
+        <option value="🧋未開始">🧋 未開始</option>
+        <option value="🍶進行中">🍶 進行中</option>
+        <option value="🥛追蹤中">🥛 追蹤中</option>
+        <option value="☕等待中">☕ 等待中</option>
+        <option value="🍷籌備中">🍷 籌備中</option>
+        <option value="🍵已完成">🍵 已完成</option>
+        <option value="🍷已放棄">🍷 已放棄</option>
+      </select>
+    </div>
+    <button class="btn-primary" onclick="saveTaskEdit()">💾 儲存</button>
+    <button class="btn-secondary" onclick="deleteTaskEdit()" style="color:#ef5350;border-color:rgba(198,40,40,0.3);margin-top:6px;">🗑️ 刪除任務</button>
+    <button class="btn-secondary" onclick="closeTaskEdit()" style="margin-top:6px;">取消</button>
+  </div>
+</div>
 
 <!-- CALENDAR DETAIL MODAL -->
 <div class="cal-detail-modal" id="calDetailModal" onclick="closeCalDetail()">
@@ -1078,13 +1206,15 @@ async function fetchTaskDates(task) {
   } catch(e) { /* silent fail */ }
 }
 
-async function loadTasks() {
+async function loadTasks() { return loadTasksByDate(); }
+async function loadTasksByDate() {
   const el = document.getElementById('taskList');
   el.innerHTML = '<div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>';
+  const targetDate = taskNavDate();
   try {
     const data = await notionQuery(DB.TASK, {
       and: [
-        { property: 'Due 排程執行日', date: { equals: today() } },
+        { property: 'Due 排程執行日', date: { equals: targetDate } },
         { property: 'Archive 封存', checkbox: { equals: false } }
       ]
     });
@@ -1409,13 +1539,37 @@ function setupCombo(id, state, multi=false) {
     tags.querySelector('[data-clear]').onclick = () => { state.selected = null; renderTags(); input.value=''; };
   }
 
+  function statusTagHTML(item) {
+    if (!item.status) return '';
+    const s = item.status;
+    let cls = 'status-pending', label = s;
+    if (s.includes('進行中')||s.includes('追蹤')||s.includes('等待')||s.includes('籌備')) { cls='status-active'; label='進行中'; }
+    else if (s.includes('完成')) { cls='status-done'; label='完成'; }
+    else if (s.includes('放棄')||s.includes('停')) { cls='status-paused'; label='停'; }
+    else { label = s.slice(0,4); }
+    return `<span class="combo-status-tag ${cls}">${label}</span>`;
+  }
+
+  function sortedItems(items) {
+    return [...items].sort((a, b) => {
+      const priority = (it) => {
+        const s = it.status || '';
+        if (s.includes('進行中')||s.includes('追蹤')||s.includes('籌備')) return 0;
+        if (s.includes('完成')||s.includes('放棄')||s.includes('停')) return 2;
+        return 1;
+      };
+      return priority(a) - priority(b);
+    });
+  }
+
   function renderDrop(q='') {
-    const filtered = state.items.filter(it => it.name.toLowerCase().includes(q.toLowerCase())).slice(0,20);
+    const all = sortedItems(state.items);
+    const filtered = all.filter(it => it.name.toLowerCase().includes(q.toLowerCase())).slice(0,25);
     if (!filtered.length) { drop.innerHTML = `<div class="combo-empty">找不到「${q}」</div>`; return; }
     drop.innerHTML = filtered.map(it => {
       const sel = state.selected?.id === it.id ? ' selected-opt' : '';
-      const short = it.name.length>36 ? it.name.slice(0,36)+'…' : it.name;
-      return `<div class="combo-option${sel}" data-id="${it.id}" data-name="${it.name.replace(/"/g,'&quot;')}">${short}</div>`;
+      const short = it.name.length>34 ? it.name.slice(0,34)+'…' : it.name;
+      return `<div class="combo-option${sel}" data-id="${it.id}" data-name="${it.name.replace(/"/g,'&quot;')}">${short}${statusTagHTML(it)}</div>`;
     }).join('');
     drop.querySelectorAll('.combo-option').forEach(el => {
       el.onclick = () => {
@@ -1454,7 +1608,7 @@ function updateShopPickerLabel() {
 }
 
 async function loadAddForm() {
-  // Load projects → combobox
+  // Load projects → combobox (with status)
   try {
     const projData = await notionQuery(DB.PROJECT, { property: 'Archives', checkbox: { equals: false } });
     comboState.project.items = (projData.results||[]).map(p => ({
@@ -1462,17 +1616,22 @@ async function loadAddForm() {
       name: p.properties['Name']?.title?.[0]?.plain_text
          || p.properties['Project Name']?.title?.[0]?.plain_text
          || p.properties['專案名稱']?.title?.[0]?.plain_text
-         || '未命名專案'
+         || '未命名專案',
+      status: p.properties['Status']?.status?.name
+           || p.properties['狀態']?.status?.name
+           || p.properties['Project Status']?.select?.name
+           || ''
     }));
   } catch(e) {}
   setupCombo('project', comboState.project);
 
-  // Load active tasks → parent/sub combobox
+  // Load active tasks → parent/sub combobox (with status)
   try {
     const data = await notionQuery(DB.TASK, { property: 'Archive 封存', checkbox: { equals: false } });
     const taskItems = (data.results||[]).map(t => ({
       id: t.id,
-      name: t.properties['Tasks Name']?.title?.[0]?.plain_text || '未命名'
+      name: t.properties['Tasks Name']?.title?.[0]?.plain_text || '未命名',
+      status: t.properties['Status 任務階段']?.status?.name || ''
     }));
     comboState.parent.items = taskItems;
     comboState.sub.items    = taskItems;
@@ -1583,10 +1742,11 @@ async function submitAddTask() {
 async function loadJournal() {
   const el = document.getElementById('journalContent');
   el.innerHTML = '<div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>';
+  const targetDate = journalNavDate();
   try {
-    const data = await notionQuery(DB.JOURNAL, { property: '日期', date: { equals: today() } });
+    const data = await notionQuery(DB.JOURNAL, { property: '日期', date: { equals: targetDate } });
     if (!data.results?.length) {
-      el.innerHTML = `<div class="empty-state"><div class="empty-icon">📓</div><div class="empty-text">今天還沒有日記<br>請先點「開啟今天」建立</div></div>`;
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">📓</div><div class="empty-text">這天還沒有日記<br>請先點「開啟今天」建立</div></div>`;
       return;
     }
     const page = data.results[0];
@@ -1662,7 +1822,7 @@ async function saveJournal() {
   if (!journalPageId) return;
   showToast('💾 儲存中...');
   const wakeVal = document.getElementById('j_wake')?.value || '08:00';
-  const wakeDatetime = `${today()}T${wakeVal}:00`;
+  const wakeDatetime = `${journalNavDate()}T${wakeVal}:00`;
   const updates = {
     '今天的狀態': { select: { name: journalData.status || '- 🌓 普通' } },
     '今天的狀態（簡述）': { rich_text: [{ text: { content: document.getElementById('j_desc').value } }] },
@@ -1697,10 +1857,11 @@ const HABITS = [
 async function loadHabits() {
   const el = document.getElementById('habitContent');
   el.innerHTML = '<div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>';
+  const targetDate = habitNavDate();
   try {
-    const data = await notionQuery(DB.HABIT, { property: '日期', date: { equals: today() } });
+    const data = await notionQuery(DB.HABIT, { property: '日期', date: { equals: targetDate } });
     if (!data.results?.length) {
-      el.innerHTML = `<div class="empty-state"><div class="empty-icon">🧘</div><div class="empty-text">今天還沒有習慣記錄<br>請先點「開啟今天」建立</div></div>`;
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">🧘</div><div class="empty-text">這天還沒有習慣記錄<br>請先點「開啟今天」建立</div></div>`;
       return;
     }
     const page = data.results[0];
@@ -1950,7 +2111,7 @@ async function loadCalendar() {
       const status = getProp(p, 'Status 任務階段', 'status') || '';
       const cls    = calStatusClass(status);
       if (!calTaskCache[dateKey]) calTaskCache[dateKey] = [];
-      calTaskCache[dateKey].push({ name, status, cls, timeStr });
+      calTaskCache[dateKey].push({ id: page.id, name, status, cls, timeStr, fullDue: due });
     }
     // Sort each day: doing→todo(by time)→done→archived→cancelled
     for (const dk of Object.keys(calTaskCache)) {
@@ -2002,10 +2163,10 @@ function renderCalendar() {
         html += '<div>';
         for (const t of tasks.slice(0, 3)) {
           const short = t.name.length > 22 ? t.name.slice(0,22)+'…' : t.name;
-          const timeLabel = t.timeStr ? `<span style="font-size:0.65rem;opacity:0.7;margin-right:3px;">${t.timeStr}</span>` : '';
-          html += `<span class="cal-task-chip ${t.cls}">${timeLabel}${short}</span>`;
+          const timeLabel = t.timeStr ? `<span style="font-size:0.65rem;opacity:0.7;margin-right:3px;">⏰${t.timeStr}</span>` : '';
+          html += `<span class="cal-task-chip ${t.cls}" onclick="event.stopPropagation();openTaskEdit('${t.id}','${t.name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${dateStr}','${t.timeStr}','${t.status}')">${timeLabel}${short}</span>`;
         }
-        if (tasks.length > 3) html += `<span class="cal-task-chip" style="cursor:pointer;opacity:0.7;">+${tasks.length-3} 更多</span>`;
+        if (tasks.length > 3) html += `<span class="cal-task-chip" style="cursor:pointer;opacity:0.7;" onclick="openCalDetail('${dateStr}')">+${tasks.length-3} 更多</span>`;
         html += '</div>';
       }
       html += '</div>';
@@ -2013,13 +2174,12 @@ function renderCalendar() {
     el.innerHTML = html || '<div class="empty-state"><div class="empty-icon">🗓</div><div class="empty-text">本月無任務</div></div>';
 
   } else {
-    // Month grid view
+    // Month grid view — show inline task labels
     const firstDow = new Date(year, month, 1).getDay();
     let html = `<div class="cal-month-grid">`;
     ['日','一','二','三','四','五','六'].forEach(d => {
       html += `<div class="cal-month-weekday">${d}</div>`;
     });
-    // blank leading cells
     for (let i = 0; i < firstDow; i++) html += `<div class="cal-month-cell other-month"></div>`;
 
     for (let d = 1; d <= endDate.getDate(); d++) {
@@ -2030,13 +2190,15 @@ function renderCalendar() {
       const isWknd  = dow === 0 || dow === 6;
       const tasks   = calTaskCache[dateStr] || [];
       const todayCls = isToday ? ' today' : isWknd ? ' weekend' : '';
-      html += `<div class="cal-month-cell${todayCls}" onclick="openCalDetail('${dateStr}')">
+      html += `<div class="cal-month-cell${todayCls}">
         <div class="cal-month-day-num">${d}</div>`;
-      // show up to 4 dots
-      for (const t of tasks.slice(0, 4)) {
-        html += `<div class="cal-dot ${t.cls}"></div>`;
+      // show up to 3 inline task labels; each is clickable to edit
+      for (const t of tasks.slice(0, 3)) {
+        const short = t.name.length > 10 ? t.name.slice(0,10)+'…' : t.name;
+        const timePfx = t.timeStr ? `<span class="cal-month-time">${t.timeStr}</span>` : '';
+        html += `<span class="cal-month-task ${t.cls}" onclick="event.stopPropagation();openTaskEdit('${t.id}','${t.name.replace(/'/g,'\\'+'\'').replace(/"/g,'&quot;')}','${dateStr}','${t.timeStr}','${t.status}')">${timePfx}${short}</span>`;
       }
-      if (tasks.length > 4) html += `<div style="font-size:0.55rem;color:var(--text3);text-align:center;">+${tasks.length-4}</div>`;
+      if (tasks.length > 3) html += `<div class="cal-month-more">+${tasks.length-3}</div>`;
       html += `</div>`;
     }
     html += `</div>`;
@@ -2051,7 +2213,8 @@ function openCalDetail(dateStr) {
   document.getElementById('calDetailTitle').textContent = `${parseInt(m)}月${parseInt(d)}日 ― ${tasks.length} 件任務`;
   const body = tasks.map(t => {
     const timeLabel = t.timeStr ? `<span style="font-size:0.75rem;opacity:0.65;margin-right:6px;">⏰${t.timeStr}</span>` : '';
-    return `<div class="cal-detail-chip ${t.cls}">${timeLabel}${t.name}</div>`;
+    const safeN = t.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    return `<div class="cal-detail-chip ${t.cls}" onclick="closeCalDetail();openTaskEdit('${t.id}','${safeN}','${dateStr}','${t.timeStr}','${t.status}')" style="cursor:pointer;">${timeLabel}${t.name} <span style="margin-left:auto;opacity:0.4;font-size:0.75rem;">✏️</span></div>`;
   }).join('');
   document.getElementById('calDetailBody').innerHTML = body;
   document.getElementById('calDetailModal').classList.add('open');
@@ -2059,6 +2222,132 @@ function openCalDetail(dateStr) {
 
 function closeCalDetail() {
   document.getElementById('calDetailModal').classList.remove('open');
+}
+
+// ─── TASK EDIT FROM CALENDAR ───
+let taskEditId = null;
+function openTaskEdit(id, name, dateStr, timeStr, status) {
+  taskEditId = id;
+  document.getElementById('taskEditName').textContent = name;
+  document.getElementById('te_date').value   = dateStr;
+  document.getElementById('te_time').value   = timeStr || '';
+  const sel = document.getElementById('te_status');
+  const match = [...sel.options].find(o => o.value === status);
+  if (match) sel.value = status;
+  document.getElementById('taskEditModal').classList.add('open');
+}
+function closeTaskEdit() {
+  document.getElementById('taskEditModal').classList.remove('open');
+  taskEditId = null;
+}
+async function saveTaskEdit() {
+  if (!taskEditId) return;
+  const dateVal = document.getElementById('te_date').value;
+  const timeVal = document.getElementById('te_time').value;
+  const status  = document.getElementById('te_status').value;
+  if (!dateVal) { showToast('⚠️ 請選日期'); return; }
+  const dateStr = timeVal ? `${dateVal}T${timeVal}:00` : dateVal;
+  showToast('💾 儲存中...');
+  await notionUpdate(taskEditId, {
+    'Due 排程執行日': { date: { start: dateStr } },
+    'Status 任務階段': { status: { name: status } }
+  });
+  showToast('✅ 已更新！');
+  closeTaskEdit();
+  loadCalendar();
+}
+async function deleteTaskEdit() {
+  if (!taskEditId) return;
+  if (!confirm('確定刪除？')) return;
+  await notionUpdate(taskEditId, { 'Archive 封存': { checkbox: true } });
+  showToast('🗑️ 已刪除');
+  closeTaskEdit();
+  loadCalendar();
+}
+
+// ─── DATE-NAV: TASKS ───
+let taskDateOffset = 0;
+function taskNavDate() {
+  const d = new Date(); d.setDate(d.getDate() + taskDateOffset);
+  return d.toISOString().split('T')[0];
+}
+function updateTaskDateLabel() {
+  const d = new Date(); d.setDate(d.getDate() + taskDateOffset);
+  const lbl = document.getElementById('taskDateLabel');
+  const DAYS = ['日','一','二','三','四','五','六'];
+  lbl.textContent = `${d.getMonth()+1}月${d.getDate()}日 星期${DAYS[d.getDay()]}`;
+  lbl.className = 'date-nav-label' + (taskDateOffset === 0 ? ' today-label' : '');
+  document.getElementById('taskSectionTitle').textContent = taskDateOffset === 0 ? '今日作戰計畫' : `${d.getMonth()+1}/${d.getDate()} 作戰計畫`;
+}
+function shiftTaskDate(delta) { taskDateOffset += delta; updateTaskDateLabel(); loadTasksByDate(); }
+function jumpTaskToday()      { taskDateOffset = 0;       updateTaskDateLabel(); loadTasksByDate(); }
+function toggleTaskDatePicker() {
+  const inp = document.getElementById('taskDatePicker');
+  inp.value = taskNavDate();
+  inp.style.display = inp.style.display === 'none' ? 'block' : 'none';
+  if (inp.style.display !== 'none') inp.showPicker?.();
+}
+function onTaskDatePick(val) {
+  const diff = Math.round((new Date(val) - new Date(today())) / 86400000);
+  taskDateOffset = diff;
+  document.getElementById('taskDatePicker').style.display = 'none';
+  updateTaskDateLabel(); loadTasksByDate();
+}
+
+// ─── DATE-NAV: JOURNAL ───
+let journalDateOffset = 0;
+function journalNavDate() {
+  const d = new Date(); d.setDate(d.getDate() + journalDateOffset);
+  return d.toISOString().split('T')[0];
+}
+function updateJournalDateLabel() {
+  const d = new Date(); d.setDate(d.getDate() + journalDateOffset);
+  const lbl = document.getElementById('journalDateLabel');
+  const DAYS = ['日','一','二','三','四','五','六'];
+  lbl.textContent = `${d.getMonth()+1}月${d.getDate()}日 星期${DAYS[d.getDay()]}`;
+  lbl.className = 'date-nav-label' + (journalDateOffset === 0 ? ' today-label' : '');
+}
+function shiftJournalDate(delta) { journalDateOffset += delta; updateJournalDateLabel(); loadJournal(); }
+function jumpJournalToday()      { journalDateOffset = 0;       updateJournalDateLabel(); loadJournal(); }
+function toggleJournalDatePicker() {
+  const inp = document.getElementById('journalDatePicker');
+  inp.value = journalNavDate();
+  inp.style.display = inp.style.display === 'none' ? 'block' : 'none';
+  if (inp.style.display !== 'none') inp.showPicker?.();
+}
+function onJournalDatePick(val) {
+  const diff = Math.round((new Date(val) - new Date(today())) / 86400000);
+  journalDateOffset = diff;
+  document.getElementById('journalDatePicker').style.display = 'none';
+  updateJournalDateLabel(); loadJournal();
+}
+
+// ─── DATE-NAV: HABITS ───
+let habitDateOffset = 0;
+function habitNavDate() {
+  const d = new Date(); d.setDate(d.getDate() + habitDateOffset);
+  return d.toISOString().split('T')[0];
+}
+function updateHabitDateLabel() {
+  const d = new Date(); d.setDate(d.getDate() + habitDateOffset);
+  const lbl = document.getElementById('habitDateLabel');
+  const DAYS = ['日','一','二','三','四','五','六'];
+  lbl.textContent = `${d.getMonth()+1}月${d.getDate()}日 星期${DAYS[d.getDay()]}`;
+  lbl.className = 'date-nav-label' + (habitDateOffset === 0 ? ' today-label' : '');
+}
+function shiftHabitDate(delta) { habitDateOffset += delta; updateHabitDateLabel(); loadHabits(); }
+function jumpHabitToday()      { habitDateOffset = 0;       updateHabitDateLabel(); loadHabits(); }
+function toggleHabitDatePicker() {
+  const inp = document.getElementById('habitDatePicker');
+  inp.value = habitNavDate();
+  inp.style.display = inp.style.display === 'none' ? 'block' : 'none';
+  if (inp.style.display !== 'none') inp.showPicker?.();
+}
+function onHabitDatePick(val) {
+  const diff = Math.round((new Date(val) - new Date(today())) / 86400000);
+  habitDateOffset = diff;
+  document.getElementById('habitDatePicker').style.display = 'none';
+  updateHabitDateLabel(); loadHabits();
 }
 
 // ═══════════════════════════════════════
@@ -2144,6 +2433,10 @@ function initApp() {
   document.getElementById('headerDate').textContent = todayFormatted();
   document.getElementById('f_date').value = today();
   document.getElementById('subTabs').style.display = 'flex';
+  // Init date nav labels
+  updateTaskDateLabel();
+  updateJournalDateLabel();
+  updateHabitDateLabel();
   loadTasks();
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
