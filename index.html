@@ -379,6 +379,114 @@ body {
 
 .hidden { display: none !important; }
 
+/* ── SEARCHABLE COMBOBOX ── */
+.combo-wrap { position: relative; }
+.combo-input {
+  width: 100%; background: var(--surface3);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-sm); padding: 11px 14px;
+  color: var(--text); font-size: 0.9rem;
+  font-family: var(--font-body); outline: none;
+  transition: border-color 0.2s;
+}
+.combo-input:focus { border-color: var(--wine-light); }
+.combo-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--wine); color: white;
+  border-radius: 12px; padding: 3px 8px 3px 10px;
+  font-size: 0.78rem; margin: 2px 3px 2px 0;
+}
+.combo-badge-x { cursor: pointer; opacity: 0.7; font-size: 0.9rem; }
+.combo-badge-x:hover { opacity: 1; }
+.combo-selected-tags { display: flex; flex-wrap: wrap; padding: 4px 0 2px; min-height: 0; }
+.combo-dropdown {
+  display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+  background: var(--surface); border: 1px solid var(--surface3);
+  border-radius: var(--radius-sm); z-index: 200;
+  max-height: 200px; overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(13,33,55,0.18);
+}
+.combo-dropdown.open { display: block; }
+.combo-option {
+  padding: 10px 14px; font-size: 0.88rem; color: var(--text2);
+  cursor: pointer; transition: background 0.15s;
+  border-bottom: 1px solid var(--surface3);
+}
+.combo-option:last-child { border-bottom: none; }
+.combo-option:hover, .combo-option.active { background: var(--surface2); color: var(--wine); }
+.combo-option.selected-opt { color: var(--text3); font-style: italic; }
+.combo-empty { padding: 10px 14px; font-size: 0.82rem; color: var(--text3); }
+
+/* ── CALENDAR VIEW TOGGLE ── */
+.cal-view-tabs { display: flex; gap: 6px; }
+.cal-view-tab {
+  flex: 1; padding: 7px 10px; border-radius: 20px;
+  border: 1px solid var(--surface3); background: var(--surface);
+  color: var(--text3); font-size: 0.8rem; font-weight: 500;
+  cursor: pointer; transition: all 0.2s; text-align: center;
+  font-family: var(--font-body);
+}
+.cal-view-tab.active { background: var(--wine); border-color: var(--wine-light); color: white; }
+
+/* ── CALENDAR MONTH GRID ── */
+.cal-month-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 2px; margin-top: 4px;
+}
+.cal-month-weekday {
+  text-align: center; font-size: 0.65rem; color: var(--text3);
+  font-weight: 600; padding: 4px 2px; letter-spacing: 0.04em;
+}
+.cal-month-cell {
+  background: var(--surface); border: 1px solid var(--surface3);
+  border-radius: 6px; padding: 4px 3px;
+  min-height: 60px; cursor: pointer; transition: border-color 0.15s;
+  position: relative;
+}
+.cal-month-cell:active { border-color: var(--wine-light); }
+.cal-month-cell.today { border-color: var(--wine-light); background: rgba(26,95,168,0.07); }
+.cal-month-cell.weekend { background: rgba(74,156,199,0.04); }
+.cal-month-cell.other-month { opacity: 0.3; }
+.cal-month-day-num { font-size: 0.75rem; font-weight: 600; color: var(--text2); text-align: center; margin-bottom: 2px; }
+.cal-month-cell.today .cal-month-day-num { color: var(--wine-light); }
+.cal-dot { width: 6px; height: 6px; border-radius: 50%; margin: 1px auto; }
+.cal-dot.doing { background: var(--blue-light); }
+.cal-dot.todo  { background: var(--text3); }
+.cal-dot.done  { background: var(--green-light); }
+.cal-dot.cancelled { background: #ef5350; }
+.cal-dot.archived { background: var(--surface3); }
+
+/* ── CALENDAR DETAIL MODAL ── */
+.cal-detail-modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(13,33,55,0.45); z-index: 400;
+  align-items: flex-end; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.cal-detail-modal.open { display: flex; animation: fadeIn 0.2s ease; }
+.cal-detail-panel {
+  background: var(--surface); border-radius: 24px 24px 0 0;
+  width: 100%; max-height: 75dvh; overflow-y: auto;
+  padding: 20px 20px calc(20px + var(--safe-bottom));
+}
+.cal-detail-title { font-family: var(--font-display); font-size: 1rem; color: var(--gold); margin-bottom: 14px; }
+.cal-detail-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: var(--radius-sm);
+  margin-bottom: 5px; font-size: 0.85rem; font-weight: 500;
+}
+.cal-detail-chip.doing   { background: rgba(42,127,212,0.12); color: var(--blue-light); border-left: 3px solid var(--blue-light); }
+.cal-detail-chip.todo    { background: var(--surface2); color: var(--text2); border-left: 3px solid var(--surface3); }
+.cal-detail-chip.done    { background: rgba(40,168,122,0.1); color: var(--green-light); border-left: 3px solid var(--green-light); text-decoration: line-through; }
+.cal-detail-chip.archived { background: var(--surface2); color: var(--text3); border-left: 3px solid var(--surface3); text-decoration: line-through; opacity: 0.6; }
+.cal-detail-chip.cancelled { background: rgba(198,40,40,0.08); color: #ef5350; border-left: 3px solid #ef5350; }
+
+/* ── CALENDAR LIST: colored chips ── */
+.cal-task-chip.doing   { background: rgba(42,127,212,0.15); color: var(--blue-light); }
+.cal-task-chip.done    { background: rgba(40,168,122,0.12); color: var(--green-light); text-decoration: line-through; opacity: 0.85; }
+.cal-task-chip.archived { text-decoration: line-through; opacity: 0.5; color: var(--text3); }
+.cal-task-chip.cancelled { background: rgba(198,40,40,0.1); color: #ef5350; }
+
 /* ── MULTI-CHIP (habit page selectors) ── */
 .chip-group {
   display: flex; flex-wrap: wrap; gap: 6px;
@@ -555,28 +663,42 @@ body {
     </div>
     <div class="form-group">
       <label class="form-label">🗂️ 關聯專案</label>
-      <select class="form-select" id="f_project">
-        <option value="">(無)</option>
-      </select>
+      <div class="combo-wrap" id="combo-project">
+        <div class="combo-selected-tags" id="combo-project-tags"></div>
+        <input class="combo-input" id="combo-project-input" placeholder="輸入關鍵字搜尋..." autocomplete="off">
+        <div class="combo-dropdown" id="combo-project-drop"></div>
+      </div>
     </div>
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">🔗 關聯母任務 (Parent)</label>
-        <select class="form-select" id="f_parent">
-          <option value="">(無)</option>
-        </select>
+        <div class="combo-wrap" id="combo-parent">
+          <div class="combo-selected-tags" id="combo-parent-tags"></div>
+          <input class="combo-input" id="combo-parent-input" placeholder="搜尋任務..." autocomplete="off">
+          <div class="combo-dropdown" id="combo-parent-drop"></div>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">🔗 附屬任務 (Sub-task)</label>
-        <select class="form-select" id="f_sub">
-          <option value="">(無)</option>
-        </select>
+        <div class="combo-wrap" id="combo-sub">
+          <div class="combo-selected-tags" id="combo-sub-tags"></div>
+          <input class="combo-input" id="combo-sub-input" placeholder="搜尋任務..." autocomplete="off">
+          <div class="combo-dropdown" id="combo-sub-drop"></div>
+        </div>
       </div>
     </div>
     <div class="form-group">
       <label class="form-label">🛒 現有購物清單（可多選）</label>
-      <div class="chip-group" id="f_shop_existing" style="min-height:36px;">
-        <span style="font-size:0.8rem;color:var(--text3);">載入中...</span>
+      <!-- collapsed trigger -->
+      <div id="shopPickerToggle" onclick="toggleShopPicker()" style="display:flex;align-items:center;justify-content:space-between;background:var(--surface3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);padding:11px 14px;cursor:pointer;font-size:0.88rem;color:var(--text2);">
+        <span id="shopPickerLabel">點此展開選擇</span>
+        <span id="shopPickerArrow" style="transition:transform 0.2s;">▾</span>
+      </div>
+      <div id="shopPickerPanel" style="display:none;margin-top:6px;background:var(--surface);border:1px solid var(--surface3);border-radius:var(--radius-sm);padding:10px;">
+        <input class="combo-input" id="shopPickerSearch" placeholder="搜尋物品..." oninput="filterShopPicker(this.value)" style="margin-bottom:8px;">
+        <div class="chip-group" id="f_shop_existing" style="min-height:36px;">
+          <span style="font-size:0.8rem;color:var(--text3);">載入中...</span>
+        </div>
       </div>
     </div>
     <div class="form-group">
@@ -599,15 +721,29 @@ body {
 
   <!-- PAGE: CALENDAR -->
   <div class="page" id="page-cal">
-    <div style="display:flex; align-items:center; gap:10px; margin-top:8px; margin-bottom:12px;">
+    <div style="display:flex; align-items:center; gap:10px; margin-top:8px; margin-bottom:10px;">
       <button class="sync-btn" onclick="calPrev()">◀</button>
       <div style="flex:1; text-align:center; font-family:var(--font-display); color:var(--gold);" id="calTitle"></div>
       <button class="sync-btn" onclick="calNext()">▶</button>
+    </div>
+    <div class="cal-view-tabs" style="margin-bottom:12px;">
+      <button class="cal-view-tab active" id="calTabList" onclick="switchCalView('list',this)">📋 列表</button>
+      <button class="cal-view-tab" id="calTabGrid" onclick="switchCalView('grid',this)">📅 月曆</button>
     </div>
     <div id="calContent"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
   </div>
 
 </main>
+
+<!-- CALENDAR DETAIL MODAL -->
+<div class="cal-detail-modal" id="calDetailModal" onclick="closeCalDetail()">
+  <div class="cal-detail-panel" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="cal-detail-title" id="calDetailTitle"></div>
+    <div id="calDetailBody"></div>
+    <button class="btn-secondary" onclick="closeCalDetail()" style="margin-top:12px;">關閉</button>
+  </div>
+</div>
 
 <!-- BOTTOM NAV -->
 <nav class="bottom-nav">
@@ -1251,45 +1387,100 @@ async function doneShopItem(id, btn) {
 }
 
 // ═══════════════════════════════════════
-// ADD TASK
+// ADD TASK — combobox helpers
 // ═══════════════════════════════════════
-function toggleTag(btn) {
-  btn.classList.toggle('selected');
-  const selected = btn.classList.contains('selected');
-  btn.style.background = selected ? 'rgba(74,156,199,0.4)' : '';
-  btn.style.fontWeight = selected ? '700' : '';
+const comboState = {
+  project: { items: [], selected: null },   // single
+  parent:  { items: [], selected: null },
+  sub:     { items: [], selected: null }
+};
+
+function setupCombo(id, state, multi=false) {
+  const input = document.getElementById(`combo-${id}-input`);
+  const drop  = document.getElementById(`combo-${id}-drop`);
+  const tags  = document.getElementById(`combo-${id}-tags`);
+  if (!input) return;
+
+  function renderTags() {
+    if (!tags) return;
+    if (!state.selected) { tags.innerHTML = ''; return; }
+    const name = state.selected.name;
+    tags.innerHTML = `<span class="combo-badge">${name.length>28?name.slice(0,28)+'…':name}<span class="combo-badge-x" data-clear="1">✕</span></span>`;
+    tags.querySelector('[data-clear]').onclick = () => { state.selected = null; renderTags(); input.value=''; };
+  }
+
+  function renderDrop(q='') {
+    const filtered = state.items.filter(it => it.name.toLowerCase().includes(q.toLowerCase())).slice(0,20);
+    if (!filtered.length) { drop.innerHTML = `<div class="combo-empty">找不到「${q}」</div>`; return; }
+    drop.innerHTML = filtered.map(it => {
+      const sel = state.selected?.id === it.id ? ' selected-opt' : '';
+      const short = it.name.length>36 ? it.name.slice(0,36)+'…' : it.name;
+      return `<div class="combo-option${sel}" data-id="${it.id}" data-name="${it.name.replace(/"/g,'&quot;')}">${short}</div>`;
+    }).join('');
+    drop.querySelectorAll('.combo-option').forEach(el => {
+      el.onclick = () => {
+        state.selected = { id: el.dataset.id, name: el.dataset.name };
+        renderTags();
+        input.value = '';
+        drop.classList.remove('open');
+      };
+    });
+  }
+
+  input.addEventListener('focus', () => { renderDrop(input.value); drop.classList.add('open'); });
+  input.addEventListener('input', () => { renderDrop(input.value); drop.classList.add('open'); });
+  document.addEventListener('click', e => { if (!e.target.closest(`#combo-${id}`)) drop.classList.remove('open'); });
 }
 
-// Populate task relation selects and shop select
+function toggleShopPicker() {
+  const panel = document.getElementById('shopPickerPanel');
+  const arrow = document.getElementById('shopPickerArrow');
+  const open = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  arrow.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+function filterShopPicker(q) {
+  document.querySelectorAll('#f_shop_existing .multi-chip').forEach(chip => {
+    chip.style.display = chip.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+  });
+}
+
+function updateShopPickerLabel() {
+  const sel = document.querySelectorAll('#f_shop_existing .multi-chip.selected');
+  const lbl = document.getElementById('shopPickerLabel');
+  if (!lbl) return;
+  lbl.textContent = sel.length ? `已選 ${sel.length} 項` : '點此展開選擇';
+}
+
 async function loadAddForm() {
-  // Load projects
+  // Load projects → combobox
   try {
     const projData = await notionQuery(DB.PROJECT, { property: 'Archives', checkbox: { equals: false } });
-    const projects = projData.results || [];
-    const projOpts = projects.map(p => {
-      const name = p.properties['Name']?.title?.[0]?.plain_text
-                || p.properties['Project Name']?.title?.[0]?.plain_text
-                || p.properties['專案名稱']?.title?.[0]?.plain_text
-                || '未命名專案';
-      return `<option value="${p.id}">${name.length > 30 ? name.slice(0,30)+'…' : name}</option>`;
-    }).join('');
-    document.getElementById('f_project').innerHTML = '<option value="">(無)</option>' + projOpts;
-  } catch(e) { /* keep defaults */ }
+    comboState.project.items = (projData.results||[]).map(p => ({
+      id: p.id,
+      name: p.properties['Name']?.title?.[0]?.plain_text
+         || p.properties['Project Name']?.title?.[0]?.plain_text
+         || p.properties['專案名稱']?.title?.[0]?.plain_text
+         || '未命名專案'
+    }));
+  } catch(e) {}
+  setupCombo('project', comboState.project);
 
-  // Load active tasks for parent/sub selects
+  // Load active tasks → parent/sub combobox
   try {
     const data = await notionQuery(DB.TASK, { property: 'Archive 封存', checkbox: { equals: false } });
-    const tasks = data.results || [];
-    const opts = tasks.map(t => {
-      const name = t.properties['Tasks Name']?.title?.[0]?.plain_text || '未命名';
-      return `<option value="${t.id}">${name.length > 30 ? name.slice(0,30)+'…' : name}</option>`;
-    }).join('');
-    const blankOpt = '<option value="">(無)</option>';
-    document.getElementById('f_parent').innerHTML = blankOpt + opts;
-    document.getElementById('f_sub').innerHTML = blankOpt + opts;
-  } catch(e) { /* keep defaults */ }
+    const taskItems = (data.results||[]).map(t => ({
+      id: t.id,
+      name: t.properties['Tasks Name']?.title?.[0]?.plain_text || '未命名'
+    }));
+    comboState.parent.items = taskItems;
+    comboState.sub.items    = taskItems;
+  } catch(e) {}
+  setupCombo('parent', comboState.parent);
+  setupCombo('sub',    comboState.sub);
 
-  // Load active shopping items into chip buttons
+  // Load shopping items → collapsible chip picker
   try {
     const shopData = await notionQuery(DB.SHOPPING, { property: '封存', checkbox: { equals: false } });
     const items = shopData.results || [];
@@ -1299,13 +1490,11 @@ async function loadAddForm() {
     } else {
       shopContainer.innerHTML = items.map(s => {
         const name = s.properties['採買物品']?.title?.[0]?.plain_text || '未知';
-        const safeId = s.id.replace(/[^a-zA-Z0-9]/g,'_');
-        return `<button type="button" class="multi-chip" data-shop-id="${s.id}" id="shopchip-${safeId}">${name}</button>`;
+        return `<button type="button" class="multi-chip" data-shop-id="${s.id}">${name}</button>`;
       }).join('');
-      // Event delegation for shop chips
       shopContainer.addEventListener('click', function(e) {
         const chip = e.target.closest('.multi-chip[data-shop-id]');
-        if (chip) chip.classList.toggle('selected');
+        if (chip) { chip.classList.toggle('selected'); updateShopPickerLabel(); }
       });
     }
   } catch(e) {
@@ -1326,11 +1515,10 @@ async function submitAddTask() {
   const deadline  = document.getElementById('f_deadline').value;
   const leadDays  = parseInt(document.getElementById('f_lead').value || '0') || 0;
   const tags      = [...document.querySelectorAll('#tagSelector button.selected')].map(b => b.dataset.tag);
-  const projectId = document.getElementById('f_project').value;
-  const parentId  = document.getElementById('f_parent').value;
-  const subId     = document.getElementById('f_sub').value;
+  const projectId = comboState.project.selected?.id || '';
+  const parentId  = comboState.parent.selected?.id  || '';
+  const subId     = comboState.sub.selected?.id     || '';
 
-  // Existing shop items from chip buttons
   const shopContainer = document.getElementById('f_shop_existing');
   const selectedShopIds = [...(shopContainer?.querySelectorAll('.multi-chip.selected[data-shop-id]') || [])].map(c => c.dataset.shopId).filter(Boolean);
   const newShopItem = document.getElementById('f_new_shop').value.trim();
@@ -1351,7 +1539,6 @@ async function submitAddTask() {
   if (parentId)     props['Parent Tasks 關聯任務']    = { relation: [{ id: parentId }] };
   if (subId)        props['Subtasks 附屬任務']        = { relation: [{ id: subId }] };
 
-  // Build shopping relation list
   const shopIds = [...selectedShopIds];
   if (newShopItem) {
     showToast('🛒 建立購物項目...');
@@ -1376,14 +1563,15 @@ async function submitAddTask() {
   document.getElementById('f_deadline').value = '';
   document.getElementById('f_lead').value     = '0';
   document.getElementById('f_new_shop').value = '';
-  document.getElementById('f_project').value  = '';
-  document.getElementById('f_parent').value   = '';
-  document.getElementById('f_sub').value      = '';
+  comboState.project.selected = null; comboState.parent.selected = null; comboState.sub.selected = null;
+  ['project','parent','sub'].forEach(id => {
+    const t = document.getElementById(`combo-${id}-tags`); if(t) t.innerHTML='';
+    const i = document.getElementById(`combo-${id}-input`); if(i) i.value='';
+  });
   document.querySelectorAll('#f_shop_existing .multi-chip.selected').forEach(c => c.classList.remove('selected'));
+  updateShopPickerLabel();
   document.querySelectorAll('#tagSelector button').forEach(b => {
-    b.classList.remove('selected');
-    b.style.background = '';
-    b.style.fontWeight = '';
+    b.classList.remove('selected'); b.style.background = ''; b.style.fontWeight = '';
   });
   switchPage('daily', document.getElementById('nav-daily'));
   loadTasks();
@@ -1698,9 +1886,35 @@ async function saveHabits() {
 // ═══════════════════════════════════════
 const DAYS_TW = ['日','一','二','三','四','五','六'];
 const MONTHS_TW = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+let calView = 'list'; // 'list' or 'grid'
+let calTaskCache = {}; // dateKey → sorted tasks array
 
 function calPrev() { calOffset--; loadCalendar(); }
 function calNext() { calOffset++; loadCalendar(); }
+function switchCalView(view, btn) {
+  calView = view;
+  document.querySelectorAll('.cal-view-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCalendar();
+}
+
+function calStatusClass(status) {
+  if (!status) return 'todo';
+  if (status.includes('進行中') || status.includes('追蹤中') || status.includes('等待中') || status.includes('籌備中')) return 'doing';
+  if (status.includes('已完成')) return 'done';
+  if (status.includes('已放棄') || status.includes('已取消')) return 'cancelled';
+  if (status.includes('封存')) return 'archived';
+  return 'todo';
+}
+
+function calSortOrder(cls) {
+  if (cls === 'doing')     return 0;
+  if (cls === 'todo')      return 1;
+  if (cls === 'done')      return 2;
+  if (cls === 'archived')  return 3;
+  if (cls === 'cancelled') return 4;
+  return 5;
+}
 
 async function loadCalendar() {
   const el = document.getElementById('calContent');
@@ -1713,71 +1927,138 @@ async function loadCalendar() {
   document.getElementById('calTitle').textContent = `${year} 年 ${MONTHS_TW[month]}`;
 
   const startDate = new Date(year, month, 1);
-  const endDate = new Date(year, month + 1, 0);
-  const startStr = startDate.toISOString().split('T')[0];
-  const endStr = endDate.toISOString().split('T')[0];
+  const endDate   = new Date(year, month + 1, 0);
+  const startStr  = startDate.toISOString().split('T')[0];
+  const endStr    = endDate.toISOString().split('T')[0];
 
   try {
     const data = await notionQuery(DB.TASK, {
       and: [
         { property: 'Due 排程執行日', date: { on_or_after: startStr } },
-        { property: 'Due 排程執行日', date: { on_or_before: endStr } },
-        { property: 'Status 任務階段', status: { does_not_equal: '🍷已放棄' } }
+        { property: 'Due 排程執行日', date: { on_or_before: endStr } }
       ]
     });
 
-    const taskMap = {};
+    calTaskCache = {};
     for (const page of data.results || []) {
       const p = page.properties;
       const due = getProp(p, 'Due 排程執行日', 'date');
       if (!due) continue;
       const dateKey = due.split('T')[0];
-      const name = getProp(p, 'Tasks Name', 'title') || '未命名';
+      const timeStr = due.includes('T') ? due.split('T')[1]?.slice(0,5) || '' : '';
+      const name   = getProp(p, 'Tasks Name', 'title') || '未命名';
       const status = getProp(p, 'Status 任務階段', 'status') || '';
-      const isDone = status.includes('已完成');
-      if (!taskMap[dateKey]) taskMap[dateKey] = [];
-      taskMap[dateKey].push({ name, isDone });
+      const cls    = calStatusClass(status);
+      if (!calTaskCache[dateKey]) calTaskCache[dateKey] = [];
+      calTaskCache[dateKey].push({ name, status, cls, timeStr });
     }
+    // Sort each day: doing→todo(by time)→done→archived→cancelled
+    for (const dk of Object.keys(calTaskCache)) {
+      calTaskCache[dk].sort((a, b) => {
+        const oa = calSortOrder(a.cls), ob = calSortOrder(b.cls);
+        if (oa !== ob) return oa - ob;
+        return (a.timeStr || '99:99').localeCompare(b.timeStr || '99:99');
+      });
+    }
+    renderCalendar();
+  } catch(e) {
+    document.getElementById('calContent').innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗</div></div>`;
+  }
+}
 
+function renderCalendar() {
+  const el = document.getElementById('calContent');
+  const now = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth() + calOffset, 1);
+  const year  = target.getFullYear();
+  const month = target.getMonth();
+  const endDate  = new Date(year, month + 1, 0);
+  const todayStr = now.toISOString().split('T')[0];
+
+  if (calView === 'list') {
     let html = '';
-    const todayStr = new Date().toISOString().split('T')[0];
-
     for (let d = 1; d <= endDate.getDate(); d++) {
-      const date = new Date(year, month, d);
+      const date    = new Date(year, month, d);
       const dateStr = date.toISOString().split('T')[0];
-      const dayOfWeek = date.getDay();
+      const dow     = date.getDay();
       const isToday = dateStr === todayStr;
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isWknd  = dow === 0 || dow === 6;
       const holiday = HOLIDAYS[dateStr] || '';
-      const tasks = taskMap[dateStr] || [];
+      const tasks   = calTaskCache[dateStr] || [];
 
-      const bgStyle = isToday ? 'border-color: var(--wine); background: rgba(139,26,26,0.1);' :
+      const bgStyle = isToday ? 'border-color: var(--wine-light); background: rgba(26,95,168,0.07);' :
                       holiday ? 'background: rgba(198,40,40,0.05);' :
-                      isWeekend ? 'background: rgba(74,156,199,0.05);' : '';
+                      isWknd  ? 'background: rgba(74,156,199,0.04);' : '';
 
-      html += `<div class="cal-day" style="${bgStyle}">
+      html += `<div class="cal-day" style="${bgStyle}" ${tasks.length ? `onclick="openCalDetail('${dateStr}')"` : ''}>
         <div class="cal-day-header">
           <span class="cal-day-num" style="${isToday?'color:var(--wine-light)':''}">${d}</span>
-          <span class="cal-day-label">星期${DAYS_TW[dayOfWeek]}</span>
+          <span class="cal-day-label">星期${DAYS_TW[dow]}</span>
           ${holiday ? `<span class="cal-day-holiday">${holiday}</span>` : ''}
           ${isToday ? '<span style="font-size:0.7rem;color:var(--wine-light);font-weight:700;">TODAY</span>' : ''}
+          ${tasks.length > 3 ? `<span style="font-size:0.7rem;color:var(--text3);margin-left:auto;">${tasks.length} 件 ›</span>` : ''}
         </div>`;
       if (tasks.length) {
         html += '<div>';
-        for (const t of tasks.slice(0, 4)) {
-          const shortName = t.name.length > 20 ? t.name.slice(0,20)+'…' : t.name;
-          html += `<span class="cal-task-chip ${t.isDone?'done':''}">${t.isDone?'✓ ':''}${shortName}</span>`;
+        for (const t of tasks.slice(0, 3)) {
+          const short = t.name.length > 22 ? t.name.slice(0,22)+'…' : t.name;
+          const timeLabel = t.timeStr ? `<span style="font-size:0.65rem;opacity:0.7;margin-right:3px;">${t.timeStr}</span>` : '';
+          html += `<span class="cal-task-chip ${t.cls}">${timeLabel}${short}</span>`;
         }
-        if (tasks.length > 4) html += `<span class="cal-task-chip">+${tasks.length-4} 更多</span>`;
+        if (tasks.length > 3) html += `<span class="cal-task-chip" style="cursor:pointer;opacity:0.7;">+${tasks.length-3} 更多</span>`;
         html += '</div>';
       }
       html += '</div>';
     }
+    el.innerHTML = html || '<div class="empty-state"><div class="empty-icon">🗓</div><div class="empty-text">本月無任務</div></div>';
 
+  } else {
+    // Month grid view
+    const firstDow = new Date(year, month, 1).getDay();
+    let html = `<div class="cal-month-grid">`;
+    ['日','一','二','三','四','五','六'].forEach(d => {
+      html += `<div class="cal-month-weekday">${d}</div>`;
+    });
+    // blank leading cells
+    for (let i = 0; i < firstDow; i++) html += `<div class="cal-month-cell other-month"></div>`;
+
+    for (let d = 1; d <= endDate.getDate(); d++) {
+      const date    = new Date(year, month, d);
+      const dateStr = date.toISOString().split('T')[0];
+      const dow     = date.getDay();
+      const isToday = dateStr === todayStr;
+      const isWknd  = dow === 0 || dow === 6;
+      const tasks   = calTaskCache[dateStr] || [];
+      const todayCls = isToday ? ' today' : isWknd ? ' weekend' : '';
+      html += `<div class="cal-month-cell${todayCls}" onclick="openCalDetail('${dateStr}')">
+        <div class="cal-month-day-num">${d}</div>`;
+      // show up to 4 dots
+      for (const t of tasks.slice(0, 4)) {
+        html += `<div class="cal-dot ${t.cls}"></div>`;
+      }
+      if (tasks.length > 4) html += `<div style="font-size:0.55rem;color:var(--text3);text-align:center;">+${tasks.length-4}</div>`;
+      html += `</div>`;
+    }
+    html += `</div>`;
     el.innerHTML = html;
-  } catch(e) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗</div></div>`;
   }
+}
+
+function openCalDetail(dateStr) {
+  const tasks = calTaskCache[dateStr] || [];
+  if (!tasks.length) return;
+  const [y,m,d] = dateStr.split('-');
+  document.getElementById('calDetailTitle').textContent = `${parseInt(m)}月${parseInt(d)}日 ― ${tasks.length} 件任務`;
+  const body = tasks.map(t => {
+    const timeLabel = t.timeStr ? `<span style="font-size:0.75rem;opacity:0.65;margin-right:6px;">⏰${t.timeStr}</span>` : '';
+    return `<div class="cal-detail-chip ${t.cls}">${timeLabel}${t.name}</div>`;
+  }).join('');
+  document.getElementById('calDetailBody').innerHTML = body;
+  document.getElementById('calDetailModal').classList.add('open');
+}
+
+function closeCalDetail() {
+  document.getElementById('calDetailModal').classList.remove('open');
 }
 
 // ═══════════════════════════════════════
