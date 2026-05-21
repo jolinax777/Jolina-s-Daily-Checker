@@ -378,6 +378,31 @@ body {
 ::-webkit-scrollbar-track { background: var(--bg); }
 
 .hidden { display: none !important; }
+
+/* ── MULTI-CHIP (habit page selectors) ── */
+.chip-group {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 4px 0;
+}
+.multi-chip {
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1.5px solid var(--surface3);
+  background: var(--surface);
+  color: var(--text2);
+  font-size: 0.8rem; font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.multi-chip:active { transform: scale(0.94); }
+.multi-chip.selected {
+  background: var(--wine);
+  border-color: var(--wine-light);
+  color: white;
+}
 </style>
 </head>
 <body>
@@ -550,8 +575,9 @@ body {
     </div>
     <div class="form-group">
       <label class="form-label">🛒 現有購物清單（可多選）</label>
-      <select class="form-select" id="f_shop_existing" multiple style="min-height:80px;">
-      </select>
+      <div class="chip-group" id="f_shop_existing" style="min-height:36px;">
+        <span style="font-size:0.8rem;color:var(--text3);">載入中...</span>
+      </div>
     </div>
     <div class="form-group">
       <label class="form-label">🛒 或...新增購物物品（自動建立）</label>
@@ -1263,21 +1289,27 @@ async function loadAddForm() {
     document.getElementById('f_sub').innerHTML = blankOpt + opts;
   } catch(e) { /* keep defaults */ }
 
-  // Load active shopping items into <select multiple>
+  // Load active shopping items into chip buttons
   try {
     const shopData = await notionQuery(DB.SHOPPING, { property: '封存', checkbox: { equals: false } });
     const items = shopData.results || [];
-    const shopSel = document.getElementById('f_shop_existing');
+    const shopContainer = document.getElementById('f_shop_existing');
     if (!items.length) {
-      shopSel.innerHTML = '<option value="" disabled>目前購物清單是空的</option>';
+      shopContainer.innerHTML = '<span style="font-size:0.8rem;color:var(--text3);">目前購物清單是空的</span>';
     } else {
-      shopSel.innerHTML = items.map(s => {
+      shopContainer.innerHTML = items.map(s => {
         const name = s.properties['採買物品']?.title?.[0]?.plain_text || '未知';
-        return `<option value="${s.id}">${name}</option>`;
+        const safeId = s.id.replace(/[^a-zA-Z0-9]/g,'_');
+        return `<button type="button" class="multi-chip" data-shop-id="${s.id}" id="shopchip-${safeId}">${name}</button>`;
       }).join('');
+      // Event delegation for shop chips
+      shopContainer.addEventListener('click', function(e) {
+        const chip = e.target.closest('.multi-chip[data-shop-id]');
+        if (chip) chip.classList.toggle('selected');
+      });
     }
   } catch(e) {
-    document.getElementById('f_shop_existing').innerHTML = '<option value="" disabled>載入失敗</option>';
+    document.getElementById('f_shop_existing').innerHTML = '<span style="font-size:0.8rem;color:#ef5350;">載入失敗</span>';
   }
 }
 
@@ -1298,9 +1330,9 @@ async function submitAddTask() {
   const parentId  = document.getElementById('f_parent').value;
   const subId     = document.getElementById('f_sub').value;
 
-  // Existing shop items from <select multiple>
-  const shopSel = document.getElementById('f_shop_existing');
-  const selectedShopIds = [...(shopSel?.selectedOptions || [])].map(o => o.value).filter(Boolean);
+  // Existing shop items from chip buttons
+  const shopContainer = document.getElementById('f_shop_existing');
+  const selectedShopIds = [...(shopContainer?.querySelectorAll('.multi-chip.selected[data-shop-id]') || [])].map(c => c.dataset.shopId).filter(Boolean);
   const newShopItem = document.getElementById('f_new_shop').value.trim();
 
   const props = {
@@ -1347,7 +1379,7 @@ async function submitAddTask() {
   document.getElementById('f_project').value  = '';
   document.getElementById('f_parent').value   = '';
   document.getElementById('f_sub').value      = '';
-  if (shopSel) [...shopSel.options].forEach(o => o.selected = false);
+  document.querySelectorAll('#f_shop_existing .multi-chip.selected').forEach(c => c.classList.remove('selected'));
   document.querySelectorAll('#tagSelector button').forEach(b => {
     b.classList.remove('selected');
     b.style.background = '';
