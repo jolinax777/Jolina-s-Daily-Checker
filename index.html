@@ -517,26 +517,63 @@ body {
 }
 .date-nav-today:active { background: var(--wine); color: white; }
 
-/* ── CALENDAR MONTH INLINE TASKS ── */
+/* ── CALENDAR MONTH DOT VIEW (reverted) ── */
 .cal-month-cell {
   background: var(--surface); border: 1px solid var(--surface3);
-  border-radius: 6px; padding: 3px 2px;
-  min-height: 70px; cursor: pointer; transition: border-color 0.15s;
-  position: relative; overflow: hidden;
+  border-radius: 6px; padding: 4px 3px;
+  min-height: 60px; cursor: pointer; transition: border-color 0.15s;
+  position: relative;
 }
-.cal-month-task {
-  display: block; font-size: 0.6rem; line-height: 1.2;
-  padding: 1px 3px; border-radius: 3px; margin: 1px 1px 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font-weight: 500; cursor: pointer;
+.cal-month-cell:active { border-color: var(--wine-light); }
+.cal-month-cell.today { border-color: var(--wine-light); background: rgba(26,95,168,0.07); }
+.cal-month-cell.weekend { background: rgba(74,156,199,0.04); }
+.cal-month-cell.other-month { opacity: 0.3; }
+.cal-month-day-num { font-size: 0.75rem; font-weight: 600; color: var(--text2); text-align: center; margin-bottom: 2px; }
+.cal-month-cell.today .cal-month-day-num { color: var(--wine-light); }
+.cal-dot { width: 6px; height: 6px; border-radius: 50%; margin: 1px auto; }
+.cal-dot.doing { background: var(--blue-light); }
+.cal-dot.todo  { background: var(--text3); }
+.cal-dot.done  { background: var(--green-light); }
+.cal-dot.cancelled { background: #ef5350; }
+.cal-dot.archived { background: var(--surface3); }
+
+/* ── DASHBOARD ── */
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.dash-card {
+  background: var(--surface); border: 1px solid var(--surface3);
+  border-radius: var(--radius); padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 4px;
 }
-.cal-month-task.doing    { background: rgba(42,127,212,0.18); color: var(--blue-light); }
-.cal-month-task.todo     { background: var(--surface2); color: var(--text2); }
-.cal-month-task.done     { background: rgba(40,168,122,0.12); color: var(--green-light); text-decoration: line-through; }
-.cal-month-task.archived { background: var(--surface2); color: var(--text3); text-decoration: line-through; opacity: 0.6; }
-.cal-month-task.cancelled{ background: rgba(198,40,40,0.1); color: #ef5350; }
-.cal-month-more { font-size: 0.58rem; color: var(--text3); text-align: center; padding: 1px 0; }
-.cal-month-time { font-size: 0.55rem; opacity: 0.7; margin-right: 2px; }
+.dash-card.full { grid-column: 1 / -1; }
+.dash-num { font-family: var(--font-display); font-size: 2rem; font-weight: 700; color: var(--wine); line-height: 1; }
+.dash-label { font-size: 0.72rem; color: var(--text3); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+.dash-sub { font-size: 0.78rem; color: var(--text2); margin-top: 2px; }
+.dash-bar-wrap { height: 8px; background: var(--surface3); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+.dash-bar { height: 100%; border-radius: 4px; background: var(--wine); transition: width 0.6s ease; }
+.dash-bar.green { background: var(--green-light); }
+.dash-bar.orange { background: var(--orange-light); }
+.dash-status-row { display: flex; flex-direction: column; gap: 6px; }
+.dash-status-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; }
+.dash-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dash-status-name { flex: 1; color: var(--text2); }
+.dash-status-count { font-weight: 700; color: var(--text); min-width: 24px; text-align: right; }
+.dash-tag-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.dash-tag-chip { font-size: 0.72rem; padding: 3px 8px; border-radius: 10px; background: var(--surface2); color: var(--text2); border: 1px solid var(--surface3); }
+.dash-overdue { background: rgba(198,40,40,0.06); border-color: rgba(198,40,40,0.2); }
+.dash-overdue .dash-num { color: #ef5350; }
+.dash-section-title {
+  font-family: var(--font-display); font-size: 0.9rem; color: var(--wine);
+  margin: 16px 0 8px; display: flex; align-items: center; gap: 8px;
+}
+.dash-section-title::after { content:''; flex:1; height:1px; background:var(--surface3); }
+.dash-task-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; background: var(--surface);
+  border: 1px solid var(--surface3); border-radius: var(--radius-sm);
+  margin-bottom: 5px; font-size: 0.84rem;
+}
+.dash-task-status { font-size: 0.65rem; padding: 2px 6px; border-radius: 8px; white-space: nowrap; flex-shrink: 0; }
+.dash-urgent-badge { background: rgba(198,40,40,0.12); color: #ef5350; font-size: 0.65rem; padding: 2px 6px; border-radius: 8px; flex-shrink: 0; }
 
 /* ── TASK EDIT MODAL (calendar) ── */
 .task-edit-modal {
@@ -829,6 +866,11 @@ body {
     </div>
     <div id="calContent"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
   </div>
+  <!-- PAGE: DASHBOARD -->
+  <div class="page" id="page-dash">
+    <div class="section-title" style="margin-top:8px;">📊 儀表板</div>
+    <div id="dashContent"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
+  </div>
 
 </main>
 
@@ -890,6 +932,10 @@ body {
   <button class="bottom-nav-item" onclick="switchPage('cal',this)" id="nav-cal">
     <span class="nav-icon">📅</span>
     <span>行事曆</span>
+  </button>
+  <button class="bottom-nav-item" onclick="switchPage('dash',this)" id="nav-dash">
+    <span class="nav-icon">📊</span>
+    <span>儀表板</span>
   </button>
 </nav>
 
@@ -1123,6 +1169,7 @@ function switchPage(page, btn) {
   if (page === 'shop') loadShopping();
   if (page === 'cal') loadCalendar();
   if (page === 'add') loadAddForm();
+  if (page === 'dash') loadDashboard();
 }
 
 function switchSubTab(tab, btn) {
@@ -1542,11 +1589,17 @@ function setupCombo(id, state, multi=false) {
   function statusTagHTML(item) {
     if (!item.status) return '';
     const s = item.status;
-    let cls = 'status-pending', label = s;
-    if (s.includes('進行中')||s.includes('追蹤')||s.includes('等待')||s.includes('籌備')) { cls='status-active'; label='進行中'; }
-    else if (s.includes('完成')) { cls='status-done'; label='完成'; }
-    else if (s.includes('放棄')||s.includes('停')) { cls='status-paused'; label='停'; }
-    else { label = s.slice(0,4); }
+    let cls, label;
+    // Map exact Notion status names (from screenshots: 專案進行中, 未關始, 已擱置, 進行中, 已取消, 已完成, 未開始, 籌備中, 追蹤中, 等待中)
+    if (s.includes('進行中'))                              { cls='status-active';  label='進行中'; }
+    else if (s.includes('追蹤中'))                         { cls='status-active';  label='追蹤中'; }
+    else if (s.includes('籌備中'))                         { cls='status-active';  label='籌備中'; }
+    else if (s.includes('等待中'))                         { cls='status-active';  label='等待中'; }
+    else if (s.includes('已完成'))                         { cls='status-done';    label='已完成'; }
+    else if (s.includes('已取消') || s.includes('放棄'))   { cls='status-paused';  label='已取消'; }
+    else if (s.includes('已擱置') || s.includes('暫停'))   { cls='status-paused';  label='已擱置'; }
+    else if (s.includes('未開始') || s.includes('未關始')) { cls='status-pending'; label='未開始'; }
+    else { cls='status-pending'; label=s.replace(/[🧋🍶🥛☕🍷🍵]/g,'').trim().slice(0,5); }
     return `<span class="combo-status-tag ${cls}">${label}</span>`;
   }
 
@@ -1554,8 +1607,9 @@ function setupCombo(id, state, multi=false) {
     return [...items].sort((a, b) => {
       const priority = (it) => {
         const s = it.status || '';
-        if (s.includes('進行中')||s.includes('追蹤')||s.includes('籌備')) return 0;
-        if (s.includes('完成')||s.includes('放棄')||s.includes('停')) return 2;
+        if (s.includes('進行中')||s.includes('追蹤中')||s.includes('籌備中')||s.includes('等待中')) return 0;
+        if (s.includes('未開始')||s.includes('未關始')) return 1;
+        if (s.includes('已完成')||s.includes('已取消')||s.includes('已擱置')||s.includes('放棄')) return 2;
         return 1;
       };
       return priority(a) - priority(b);
@@ -2174,7 +2228,7 @@ function renderCalendar() {
     el.innerHTML = html || '<div class="empty-state"><div class="empty-icon">🗓</div><div class="empty-text">本月無任務</div></div>';
 
   } else {
-    // Month grid view — show inline task labels
+    // Month grid view — dots, click cell to open detail
     const firstDow = new Date(year, month, 1).getDay();
     let html = `<div class="cal-month-grid">`;
     ['日','一','二','三','四','五','六'].forEach(d => {
@@ -2190,15 +2244,12 @@ function renderCalendar() {
       const isWknd  = dow === 0 || dow === 6;
       const tasks   = calTaskCache[dateStr] || [];
       const todayCls = isToday ? ' today' : isWknd ? ' weekend' : '';
-      html += `<div class="cal-month-cell${todayCls}">
+      html += `<div class="cal-month-cell${todayCls}" onclick="openCalDetail('${dateStr}')">
         <div class="cal-month-day-num">${d}</div>`;
-      // show up to 3 inline task labels; each is clickable to edit
-      for (const t of tasks.slice(0, 3)) {
-        const short = t.name.length > 10 ? t.name.slice(0,10)+'…' : t.name;
-        const timePfx = t.timeStr ? `<span class="cal-month-time">${t.timeStr}</span>` : '';
-        html += `<span class="cal-month-task ${t.cls}" onclick="event.stopPropagation();openTaskEdit('${t.id}','${t.name.replace(/'/g,'\\'+'\'').replace(/"/g,'&quot;')}','${dateStr}','${t.timeStr}','${t.status}')">${timePfx}${short}</span>`;
+      for (const t of tasks.slice(0, 4)) {
+        html += `<div class="cal-dot ${t.cls}"></div>`;
       }
-      if (tasks.length > 3) html += `<div class="cal-month-more">+${tasks.length-3}</div>`;
+      if (tasks.length > 4) html += `<div style="font-size:0.55rem;color:var(--text3);text-align:center;">+${tasks.length-4}</div>`;
       html += `</div>`;
     }
     html += `</div>`;
@@ -2362,8 +2413,169 @@ async function syncAll() {
     else if (currentSubTab === 'habits') await loadHabits();
   } else if (currentPage === 'shop') await loadShopping();
   else if (currentPage === 'cal') await loadCalendar();
+  else if (currentPage === 'dash') await loadDashboard();
   setTimeout(() => btn.classList.remove('spinning'), 500);
   showToast('🔄 已更新！');
+}
+
+// ═══════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════
+async function loadDashboard() {
+  const el = document.getElementById('dashContent');
+  el.innerHTML = '<div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>';
+  try {
+    // Fetch all non-archived tasks
+    const data = await notionQuery(DB.TASK, {
+      property: 'Archive 封存', checkbox: { equals: false }
+    });
+    const tasks = data.results || [];
+    const t = today();
+
+    // ── Counters ──
+    let total = tasks.length;
+    let doing = 0, todo = 0, done = 0, cancelled = 0, overdue = 0;
+    const tagCount = {};
+    const typeCount = {};
+    const urgentTasks = []; // priority 1 or 2, not done
+    const overdueList = [];
+
+    for (const page of tasks) {
+      const p = page.properties;
+      const status = getProp(p, 'Status 任務階段', 'status') || '';
+      const due    = fmtDate(p['Due 排程執行日']?.date?.start);
+      const prior  = getProp(p, 'Priority 任務優先值', 'select') || '';
+      const tags   = getProp(p, 'Tags 任務隸屬', 'multi_select') || [];
+      const type   = getProp(p, 'Type 任務類型', 'select') || '';
+      const name   = getProp(p, 'Tasks Name', 'title') || '未命名';
+
+      const cls = calStatusClass(status);
+      if (cls === 'doing')     doing++;
+      else if (cls === 'done') done++;
+      else if (cls === 'cancelled') cancelled++;
+      else todo++;
+
+      if (due && due < t && cls !== 'done' && cls !== 'cancelled') {
+        overdue++;
+        overdueList.push({ name, due, status, cls });
+      }
+      for (const tag of tags) tagCount[tag] = (tagCount[tag]||0) + 1;
+      if (type) typeCount[type] = (typeCount[type]||0) + 1;
+      if ((prior.includes('1級')||prior.includes('2級')) && cls !== 'done' && cls !== 'cancelled') {
+        urgentTasks.push({ name, status, due, cls, prior });
+      }
+    }
+
+    const completionRate = total > 0 ? Math.round(done / total * 100) : 0;
+    const activeRate     = total > 0 ? Math.round(doing / total * 100) : 0;
+
+    // ── Status color map ──
+    const statusColors = {
+      doing: 'var(--blue-light)', todo: 'var(--text3)',
+      done: 'var(--green-light)', cancelled: '#ef5350'
+    };
+
+    // ── Tag chips ──
+    const topTags = Object.entries(tagCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+    // ── Type breakdown ──
+    const typeList = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+
+    // ── HTML ──
+    let html = `
+<div class="dash-grid">
+  <div class="dash-card">
+    <div class="dash-num">${total}</div>
+    <div class="dash-label">總任務數</div>
+    <div class="dash-sub">未封存</div>
+  </div>
+  <div class="dash-card ${overdue>0?'dash-overdue':''}">
+    <div class="dash-num">${overdue}</div>
+    <div class="dash-label">⚠️ 逾期未完成</div>
+    <div class="dash-sub">${overdue>0?'需要處理':'目前良好 ✨'}</div>
+  </div>
+  <div class="dash-card full">
+    <div class="dash-label">完成率</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+      <div style="flex:1;">
+        <div class="dash-bar-wrap"><div class="dash-bar green" style="width:${completionRate}%"></div></div>
+      </div>
+      <div style="font-size:1.1rem;font-weight:700;color:var(--green-light);">${completionRate}%</div>
+    </div>
+    <div class="dash-sub" style="margin-top:4px;">已完成 ${done} ／ 進行中 ${doing} ／ 待處理 ${todo} ／ 已取消 ${cancelled}</div>
+  </div>
+</div>
+
+<div class="dash-section-title">📊 狀態分佈</div>
+<div class="dash-card" style="margin-bottom:12px;">
+  <div class="dash-status-row">
+    ${[['doing','進行中 / 追蹤中',doing],['todo','待處理',todo],['done','已完成',done],['cancelled','已取消',cancelled]].map(([cls,label,count])=>`
+    <div class="dash-status-item">
+      <div class="dash-status-dot" style="background:${statusColors[cls]};"></div>
+      <div class="dash-status-name">${label}</div>
+      <div style="flex:1;margin:0 8px;"><div class="dash-bar-wrap"><div class="dash-bar" style="width:${total>0?Math.round(count/total*100):0}%;background:${statusColors[cls]};"></div></div></div>
+      <div class="dash-status-count">${count}</div>
+    </div>`).join('')}
+  </div>
+</div>`;
+
+    if (topTags.length) {
+      html += `
+<div class="dash-section-title">🏷️ 任務標籤</div>
+<div class="dash-card" style="margin-bottom:12px;">
+  <div class="dash-tag-row">
+    ${topTags.map(([tag,cnt])=>`<span class="dash-tag-chip">${tag} <b>${cnt}</b></span>`).join('')}
+  </div>
+</div>`;
+    }
+
+    if (typeList.length) {
+      html += `
+<div class="dash-section-title">📂 任務類型分佈</div>
+<div class="dash-card" style="margin-bottom:12px;">
+  <div class="dash-status-row">
+    ${typeList.map(([type,cnt])=>{
+      const short = type.replace(/[🟧🟨🟩🟪]/g,'').trim().slice(0,8);
+      return `<div class="dash-status-item">
+        <div class="dash-status-name" style="font-size:0.78rem;">${short}</div>
+        <div style="flex:1;margin:0 8px;"><div class="dash-bar-wrap"><div class="dash-bar" style="width:${total>0?Math.round(cnt/total*100):0}%;"></div></div></div>
+        <div class="dash-status-count">${cnt}</div>
+      </div>`;
+    }).join('')}
+  </div>
+</div>`;
+    }
+
+    if (urgentTasks.length) {
+      html += `<div class="dash-section-title">🔴 高優先任務</div>`;
+      for (const t of urgentTasks.slice(0, 8)) {
+        const isOverdue = t.due && t.due < today();
+        const short = t.name.length > 30 ? t.name.slice(0,30)+'…' : t.name;
+        const statusLabel = t.status.replace(/[🧋🍶🥛☕🍷🍵]/g,'').trim();
+        html += `<div class="dash-task-row">
+          <span class="dash-task-status status-${t.cls==='doing'?'active':t.cls==='done'?'done':'pending'}">${statusLabel}</span>
+          <span style="flex:1;font-size:0.83rem;">${short}</span>
+          ${isOverdue ? `<span class="dash-urgent-badge">逾期</span>` : t.due ? `<span style="font-size:0.72rem;color:var(--text3);">${t.due}</span>` : ''}
+        </div>`;
+      }
+    }
+
+    if (overdueList.length) {
+      html += `<div class="dash-section-title" style="color:#ef5350;">⚠️ 逾期清單</div>`;
+      for (const t of overdueList.slice(0, 6)) {
+        const short = t.name.length > 28 ? t.name.slice(0,28)+'…' : t.name;
+        html += `<div class="dash-task-row" style="border-color:rgba(198,40,40,0.2);">
+          <span style="flex:1;font-size:0.83rem;">${short}</span>
+          <span style="font-size:0.72rem;color:#ef5350;">${t.due}</span>
+        </div>`;
+      }
+    }
+
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗</div></div>`;
+    console.error(e);
+  }
 }
 
 
