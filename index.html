@@ -215,12 +215,12 @@ body {
 .bottom-nav-item {
   flex: 1; display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  padding: 8px 2px; cursor: pointer;
-  color: var(--text3); font-size: 0.58rem; gap: 2px;
+  padding: 10px 4px; cursor: pointer;
+  color: var(--text3); font-size: 0.65rem; gap: 3px;
   transition: color 0.2s; border: none; background: transparent;
   font-family: var(--font-body);
 }
-.bottom-nav-item .nav-icon { font-size: 1.15rem; }
+.bottom-nav-item .nav-icon { font-size: 1.3rem; }
 .bottom-nav-item.active { color: var(--wine-light); }
 
 /* ── ACTION BUTTONS ── */
@@ -635,7 +635,7 @@ body {
     <div class="app-title">🌊 War Room</div>
     <div style="display:flex;align-items:center;gap:7px;margin-top:1px;flex-wrap:wrap;">
       <div class="app-date" id="headerDate"></div>
-      <div id="weatherWidget" onclick="toggleWeatherPanel()" style="display:flex;align-items:center;gap:4px;font-size:0.72rem;color:var(--text3);cursor:pointer;padding:2px 7px;border-radius:9px;background:var(--surface2);border:1px solid var(--surface3);">
+      <div id="weatherWidget" onclick="refreshWeather()" style="display:flex;align-items:center;gap:4px;font-size:0.72rem;color:var(--text3);cursor:pointer;padding:2px 7px;border-radius:9px;background:var(--surface2);border:1px solid var(--surface3);">
         <span id="weatherIcon" style="font-size:0.95rem;">⏳</span>
         <span id="weatherTemp" style="font-weight:700;color:var(--text2);">—</span>
         <span id="weatherDesc" style="color:var(--text3);">天氣</span>
@@ -950,10 +950,6 @@ body {
     <span class="nav-icon">📊</span>
     <span>儀表板</span>
   </button>
-  <button class="bottom-nav-item" onclick="openPomo()" id="nav-pomo">
-    <span class="nav-icon">🍅</span>
-    <span>番茄鐘</span>
-  </button>
 </nav>
 
 <!-- TASK ACTION MODAL -->
@@ -1007,60 +1003,6 @@ body {
     <button class="btn-primary" onclick="saveSetup()">🚀 開始使用</button>
     <div id="setupError" style="color:#ef5350; font-size:0.82rem; text-align:center; margin-top:12px; display:none;">⚠️ Token 驗證失敗，請確認後再試</div>
   </div>
-</div>
-
-<!-- WEATHER PANEL -->
-<div id="weatherPanel" onclick="closeWeatherPanel()" style="display:none;position:fixed;inset:0;z-index:850;background:rgba(13,33,55,0.3);backdrop-filter:blur(3px);">
-  <div onclick="event.stopPropagation()" style="position:absolute;top:54px;left:8px;right:8px;background:var(--surface);border:1px solid var(--surface3);border-radius:16px;padding:16px;box-shadow:0 8px 32px rgba(13,33,55,0.25);">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <div style="font-family:var(--font-display);font-size:0.9rem;color:var(--gold);">🌤 一週天氣預報</div>
-      <button onclick="closeWeatherPanel()" style="background:none;border:none;color:var(--text3);font-size:1.2rem;cursor:pointer;">✕</button>
-    </div>
-    <div id="weatherForecastBody" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;">
-      <div style="font-size:0.75rem;color:var(--text3);">載入中...</div>
-    </div>
-    <div style="margin-top:12px;font-size:0.7rem;color:var(--text3);text-align:center;">資料來源：Open-Meteo · <span onclick="refreshWeather();showToast('🌤 更新中...')" style="color:var(--wine-light);cursor:pointer;">重新整理</span></div>
-  </div>
-</div>
-
-<!-- POMODORO PAGE (injected into main via switchPage) -->
-<div id="pomodoroOverlay" style="display:none;position:fixed;inset:0;z-index:700;background:var(--bg);overflow-y:auto;padding:16px 16px calc(80px + var(--safe-bottom));">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-    <button onclick="closePomo()" style="background:var(--surface2);border:1px solid var(--surface3);border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;">←</button>
-    <div style="font-family:var(--font-display);font-size:1rem;color:var(--gold);">🍅 番茄鐘</div>
-  </div>
-  <!-- Timer ring -->
-  <div style="text-align:center;padding:20px 0 10px;">
-    <svg width="200" height="200" viewBox="0 0 200 200" style="transform:rotate(-90deg)">
-      <circle cx="100" cy="100" r="88" fill="none" stroke="var(--surface3)" stroke-width="10"/>
-      <circle id="pomoRing" cx="100" cy="100" r="88" fill="none" stroke="var(--wine)" stroke-width="10"
-        stroke-dasharray="553" stroke-dashoffset="0" stroke-linecap="round" style="transition:stroke-dashoffset 1s linear,stroke 0.3s;"/>
-    </svg>
-    <div style="margin-top:-140px;padding-bottom:130px;">
-      <div id="pomoTime" style="font-family:var(--font-display);font-size:3rem;font-weight:700;color:var(--text);letter-spacing:2px;">25:00</div>
-      <div id="pomoPhase" style="font-size:0.8rem;color:var(--text3);margin-top:2px;">🍅 專注時間</div>
-    </div>
-  </div>
-  <!-- Mode selector -->
-  <div style="display:flex;gap:6px;margin-bottom:16px;">
-    <button class="cal-view-tab active" id="pomoBtn25" onclick="setPomoMode(25,'🍅 專注時間',this)">25 分</button>
-    <button class="cal-view-tab" id="pomoBtn5"  onclick="setPomoMode(5,'☕ 短休息',this)">5 分</button>
-    <button class="cal-view-tab" id="pomoBtn15" onclick="setPomoMode(15,'🛋️ 長休息',this)">15 分</button>
-  </div>
-  <!-- Controls -->
-  <div style="display:flex;gap:10px;margin-bottom:20px;">
-    <button id="pomoStartBtn" onclick="togglePomo()" class="btn-primary" style="flex:1;font-size:1rem;">▶ 開始</button>
-    <button onclick="resetPomo()" class="btn-secondary" style="width:52px;">↺</button>
-  </div>
-  <!-- Stats -->
-  <div class="dash-card" style="text-align:center;">
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-      <div><div class="dash-num" style="font-size:1.4rem;" id="pomoCountToday">0</div><div class="dash-label">今日番茄</div></div>
-      <div><div class="dash-num" style="font-size:1.4rem;" id="pomoCountTotal">0</div><div class="dash-label">總番茄</div></div>
-      <div><div class="dash-num" style="font-size:1.4rem;" id="pomoFocusMin">0</div><div class="dash-label">分鐘專注</div></div>
-    </div>
-  </div>
-  <div id="pomoLog" style="margin-top:14px;"></div>
 </div>
 
 <!-- DASH DRILL MODAL -->
@@ -1186,27 +1128,6 @@ async function notionCreate(dbId, properties) {
 async function notionUpdate(pageId, properties) {
   return notionFetch(`https://api.notion.com/v1/pages/${pageId}`, {
     method: 'PATCH', body: JSON.stringify({ properties })
-  });
-}
-
-async function notionArchivePage(pageId) {
-  // Notion API: set archived=true at top level AND set the checkbox property
-  return notionFetch(`https://api.notion.com/v1/pages/${pageId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({
-      archived: true,
-      properties: { 'Archive 封存': { checkbox: true } }
-    })
-  });
-}
-
-async function notionArchiveShopping(pageId) {
-  return notionFetch(`https://api.notion.com/v1/pages/${pageId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({
-      archived: true,
-      properties: { '封存': { checkbox: true } }
-    })
   });
 }
 
@@ -1550,8 +1471,7 @@ async function updateTaskFromModal() {
 async function deleteTaskFromModal() {
   if (!confirm('確定要刪除這個任務嗎？')) return;
   closeModal('taskModal');
-  showToast('🗑️ 刪除中...');
-  await notionArchivePage(modalTaskId);
+  await notionUpdate(modalTaskId, { 'Archive 封存': { checkbox: true } });
   showToast('🗑️ 已刪除');
   loadTasks();
 }
@@ -1609,7 +1529,7 @@ async function actionArchive() {
     const p = page.properties;
     const status = getProp(p, 'Status 任務階段', 'status') || getProp(p, 'Status 任務階段', 'select') || '';
     if (status.includes('已完成') || status.includes('已放棄')) {
-      await notionArchivePage(page.id);
+      await notionUpdate(page.id, { 'Archive 封存': { checkbox: true } });
       archived++;
     }
   }
@@ -1662,29 +1582,14 @@ document.getElementById('shopInput').addEventListener('keydown', e => {
 
 async function doneShopItem(id, btn) {
   btn.textContent = '⏳';
-  await notionArchiveShopping(id);
+  await notionUpdate(id, { '封存': { checkbox: true } });
   showToast('✔ 已完成！');
   loadShopping();
 }
 
 // ═══════════════════════════════════════
-// ADD TASK — tag toggle + combobox helpers
+// ADD TASK — combobox helpers
 // ═══════════════════════════════════════
-function toggleTag(btn) {
-  btn.classList.toggle("selected");
-  if (btn.classList.contains("selected")) {
-    btn.style.background = "var(--wine)";
-    btn.style.color = "white";
-    btn.style.borderColor = "var(--wine-light)";
-    btn.style.fontWeight = "700";
-  } else {
-    btn.style.background = "";
-    btn.style.color = "";
-    btn.style.borderColor = "";
-    btn.style.fontWeight = "";
-  }
-}
-
 const comboState = {
   project: { items: [], selected: null },   // single
   parent:  { items: [], selected: null },
@@ -1859,23 +1764,7 @@ async function loadAddForm() {
 
 async function submitAddTask() {
   const body = document.getElementById('f_body').value.trim();
-  const tags  = [...document.querySelectorAll('#tagSelector button.selected')].map(b => b.dataset.tag);
-
-  // ── Required field validation ──
-  const errors = [];
-  if (!body) errors.push('任務內容');
-  if (!tags.length) errors.push('標籤（至少選一個）');
-  if (errors.length) {
-    showToast('⚠️ 請填寫：' + errors.join('、'));
-    // Highlight missing fields
-    document.getElementById('f_body').style.borderColor = !body ? '#ef5350' : '';
-    document.getElementById('tagSelector').style.outline = !tags.length ? '2px solid #ef5350' : '';
-    setTimeout(() => {
-      document.getElementById('f_body').style.borderColor = '';
-      document.getElementById('tagSelector').style.outline = '';
-    }, 2500);
-    return;
-  }
+  if (!body) { showToast('⚠️ 請填寫任務內容'); return; }
 
   const category = document.getElementById('f_category').value.trim() || '任務';
   const name = `🌼［${category}］${body}`;
@@ -1885,7 +1774,7 @@ async function submitAddTask() {
   const time      = document.getElementById('f_time').value;
   const deadline  = document.getElementById('f_deadline').value;
   const leadDays  = parseInt(document.getElementById('f_lead').value || '0') || 0;
-  // tags already read above for validation
+  const tags      = [...document.querySelectorAll('#tagSelector button.selected')].map(b => b.dataset.tag);
   const projectId = comboState.project.selected?.id || '';
   const parentId  = comboState.parent.selected?.id  || '';
   const subId     = comboState.sub.selected?.id     || '';
@@ -2468,8 +2357,7 @@ async function saveTaskEdit() {
 async function deleteTaskEdit() {
   if (!taskEditId) return;
   if (!confirm('確定刪除？')) return;
-  showToast('🗑️ 刪除中...');
-  await notionArchivePage(taskEditId);
+  await notionUpdate(taskEditId, { 'Archive 封存': { checkbox: true } });
   showToast('🗑️ 已刪除');
   closeTaskEdit();
   loadCalendar();
@@ -2578,168 +2466,31 @@ async function syncAll() {
 }
 
 // ═══════════════════════════════════════
-// WEATHER — 7-day forecast
+// WEATHER (Open-Meteo, no API key needed)
 // ═══════════════════════════════════════
-const WX_CODE_ICON={0:'☀️',1:'🌤',2:'⛅',3:'🌥',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'🌨',73:'🌨',75:'🌨',80:'🌦',81:'🌦',82:'🌩',95:'⛈',96:'⛈',99:'⛈'};
-const WX_DAY=['日','一','二','三','四','五','六'];
-let wxForecast = null;
-
+const WX_CODE_ICON = {0:'☀️',1:'🌤',2:'⛅',3:'🌥',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'🌨',73:'🌨',75:'🌨',80:'🌦',81:'🌦',82:'🌩',95:'⛈',96:'⛈',99:'⛈'};
 async function loadWeather() {
   try {
-    let lat=22.6273, lon=120.3014;
+    let lat = 22.6273, lon = 120.3014; // Kaohsiung default
     try {
-      const pos = await new Promise((res,rej)=>navigator.geolocation?.getCurrentPosition(res,rej,{timeout:3000})||rej());
-      lat=pos.coords.latitude; lon=pos.coords.longitude;
+      const pos = await new Promise((res,rej)=>navigator.geolocation?.getCurrentPosition(res,rej,{timeout:3500})||rej());
+      lat = pos.coords.latitude; lon = pos.coords.longitude;
     } catch(e) {}
-    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,apparent_temperature&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTaipei&forecast_days=7`);
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,apparent_temperature&timezone=Asia%2FTaipei`);
     const d = await r.json();
-    // Current
     const temp  = Math.round(d.current.temperature_2m);
     const feels = Math.round(d.current.apparent_temperature);
-    const icon  = WX_CODE_ICON[d.current.weathercode]||'🌡';
+    const icon  = WX_CODE_ICON[d.current.weathercode] || '🌡';
     document.getElementById('weatherIcon').textContent = icon;
-    document.getElementById('weatherTemp').textContent = temp+'°';
+    document.getElementById('weatherTemp').textContent = temp+'°C';
     document.getElementById('weatherDesc').textContent = '體感'+feels+'°';
-    // Store forecast
-    wxForecast = d.daily;
-    renderWeatherPanel();
   } catch(e) {
-    document.getElementById('weatherIcon').textContent='🌡';
-    document.getElementById('weatherTemp').textContent='—';
-    document.getElementById('weatherDesc').textContent='無法取得';
+    document.getElementById('weatherIcon').textContent = '🌡';
+    document.getElementById('weatherTemp').textContent = '—';
+    document.getElementById('weatherDesc').textContent = '無法取得';
   }
 }
-
-function renderWeatherPanel() {
-  const el = document.getElementById('weatherForecastBody');
-  if (!wxForecast || !el) return;
-  const days = wxForecast.time || [];
-  el.innerHTML = days.map((dateStr,i) => {
-    const d = new Date(dateStr);
-    const dow = WX_DAY[d.getDay()];
-    const icon = WX_CODE_ICON[wxForecast.weathercode[i]]||'🌡';
-    const hi   = Math.round(wxForecast.temperature_2m_max[i]);
-    const lo   = Math.round(wxForecast.temperature_2m_min[i]);
-    const rain = wxForecast.precipitation_probability_max[i]||0;
-    const isToday = i===0;
-    return `<div style="padding:6px 2px;border-radius:8px;${isToday?'background:rgba(26,95,168,0.1);border:1px solid var(--wine-light);':''}">
-      <div style="font-size:0.65rem;color:${isToday?'var(--wine-light)':'var(--text3)};font-weight:${isToday?'700':'400'}">${isToday?'今天':dow}</div>
-      <div style="font-size:1.2rem;margin:3px 0;">${icon}</div>
-      <div style="font-size:0.62rem;color:var(--text);font-weight:600;">${hi}°</div>
-      <div style="font-size:0.6rem;color:var(--text3);">${lo}°</div>
-      ${rain>20?`<div style="font-size:0.58rem;color:#4fc3f7;">💧${rain}%</div>`:''}
-    </div>`;
-  }).join('');
-}
-
-function toggleWeatherPanel() {
-  const panel = document.getElementById('weatherPanel');
-  if (panel.style.display==='none'||!panel.style.display) {
-    renderWeatherPanel();
-    panel.style.display='block';
-  } else {
-    panel.style.display='none';
-  }
-}
-function closeWeatherPanel() { document.getElementById('weatherPanel').style.display='none'; }
-function refreshWeather() { loadWeather(); showToast('🌤 更新中...'); }
-
-// ═══════════════════════════════════════
-// POMODORO
-// ═══════════════════════════════════════
-let pomoTimer=null, pomoSeconds=25*60, pomoTotalSeconds=25*60;
-let pomoRunning=false, pomoMode='focus';
-let pomoTodayCount=parseInt(localStorage.getItem('pomo_today_'+today())||'0');
-let pomoTotalCount=parseInt(localStorage.getItem('pomo_total')||'0');
-let pomoFocusMinutes=parseInt(localStorage.getItem('pomo_focus_min')||'0');
-const POMO_FULL=553; // svg circle circumference
-
-function openPomo() {
-  document.getElementById('pomodoroOverlay').style.display='block';
-  updatePomoDisplay();
-  updatePomoStats();
-}
-function closePomo() {
-  document.getElementById('pomodoroOverlay').style.display='none';
-}
-function setPomoMode(mins, label, btn) {
-  if (pomoRunning) return;
-  document.querySelectorAll('[id^=pomoBtn]').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  pomoSeconds = mins*60;
-  pomoTotalSeconds = mins*60;
-  pomoMode = mins===25?'focus':mins===5?'short':'long';
-  document.getElementById('pomoPhase').textContent = label;
-  updatePomoDisplay();
-}
-function togglePomo() {
-  if (pomoRunning) {
-    clearInterval(pomoTimer);
-    pomoRunning=false;
-    document.getElementById('pomoStartBtn').textContent='▶ 繼續';
-  } else {
-    pomoRunning=true;
-    document.getElementById('pomoStartBtn').textContent='⏸ 暫停';
-    pomoTimer=setInterval(()=>{
-      pomoSeconds--;
-      updatePomoDisplay();
-      if (pomoSeconds<=0) {
-        clearInterval(pomoTimer);
-        pomoRunning=false;
-        document.getElementById('pomoStartBtn').textContent='▶ 開始';
-        // Finished a focus session
-        if (pomoMode==='focus') {
-          pomoTodayCount++;
-          pomoTotalCount++;
-          pomoFocusMinutes += Math.round(pomoTotalSeconds/60);
-          const todayKey='pomo_today_'+today();
-          localStorage.setItem(todayKey, pomoTodayCount);
-          localStorage.setItem('pomo_total', pomoTotalCount);
-          localStorage.setItem('pomo_focus_min', pomoFocusMinutes);
-          updatePomoStats();
-          showToast('🍅 番茄完成！休息一下吧');
-          addPomoLogEntry();
-        }
-        // vibrate if supported
-        navigator.vibrate?.([200,100,200]);
-      }
-    }, 1000);
-  }
-}
-function resetPomo() {
-  clearInterval(pomoTimer);
-  pomoRunning=false;
-  pomoSeconds=pomoTotalSeconds;
-  document.getElementById('pomoStartBtn').textContent='▶ 開始';
-  updatePomoDisplay();
-}
-function updatePomoDisplay() {
-  const m=String(Math.floor(pomoSeconds/60)).padStart(2,'0');
-  const s=String(pomoSeconds%60).padStart(2,'0');
-  document.getElementById('pomoTime').textContent=`${m}:${s}`;
-  const pct=1-(pomoSeconds/pomoTotalSeconds);
-  const offset=POMO_FULL*pct;
-  const ring=document.getElementById('pomoRing');
-  if (ring) {
-    ring.style.strokeDashoffset=POMO_FULL-offset;
-    ring.style.stroke=pomoMode==='focus'?'var(--wine)':pomoMode==='short'?'var(--green-light)':'var(--blue-light)';
-  }
-}
-function updatePomoStats() {
-  const todayCount=parseInt(localStorage.getItem('pomo_today_'+today())||'0');
-  document.getElementById('pomoCountToday').textContent=todayCount;
-  document.getElementById('pomoCountTotal').textContent=pomoTotalCount;
-  document.getElementById('pomoFocusMin').textContent=pomoFocusMinutes;
-}
-function addPomoLogEntry() {
-  const log=document.getElementById('pomoLog');
-  const now=new Date();
-  const timeStr=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-  const entry=document.createElement('div');
-  entry.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);border:1px solid var(--surface3);border-radius:8px;margin-bottom:5px;font-size:0.82rem;';
-  entry.innerHTML=`<span>🍅</span><span style="flex:1">第 ${pomoTodayCount} 個番茄</span><span style="color:var(--text3)">${timeStr}</span>`;
-  log.prepend(entry);
-}
+function refreshWeather() { showToast('🌤 更新中...'); loadWeather(); }
 
 // ═══════════════════════════════════════
 // DASHBOARD — drill-down modal
