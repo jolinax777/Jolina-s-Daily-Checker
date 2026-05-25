@@ -400,11 +400,12 @@ body {
 .combo-badge-x:hover { opacity: 1; }
 .combo-selected-tags { display: flex; flex-wrap: wrap; padding: 4px 0 2px; min-height: 0; }
 .combo-dropdown {
-  display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+  display: none; position: fixed; left: 0; right: 0;
   background: var(--surface); border: 1px solid var(--surface3);
-  border-radius: var(--radius-sm); z-index: 200;
-  max-height: 200px; overflow-y: auto;
-  box-shadow: 0 8px 24px rgba(13,33,55,0.18);
+  border-radius: var(--radius-sm); z-index: 900;
+  max-height: 52dvh; overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 8px 32px rgba(13,33,55,0.28);
 }
 .combo-dropdown.open { display: block; }
 .combo-option {
@@ -630,11 +631,18 @@ body {
 
 <!-- HEADER -->
 <header class="app-header">
-  <div>
+  <div style="flex:1;min-width:0;">
     <div class="app-title">🌊 War Room</div>
-    <div class="app-date" id="headerDate"></div>
+    <div style="display:flex;align-items:center;gap:7px;margin-top:1px;flex-wrap:wrap;">
+      <div class="app-date" id="headerDate"></div>
+      <div id="weatherWidget" onclick="refreshWeather()" style="display:flex;align-items:center;gap:4px;font-size:0.72rem;color:var(--text3);cursor:pointer;padding:2px 7px;border-radius:9px;background:var(--surface2);border:1px solid var(--surface3);">
+        <span id="weatherIcon" style="font-size:0.95rem;">⏳</span>
+        <span id="weatherTemp" style="font-weight:700;color:var(--text2);">—</span>
+        <span id="weatherDesc" style="color:var(--text3);">天氣</span>
+      </div>
+    </div>
   </div>
-  <div style="display:flex;gap:8px;align-items:center;">
+  <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
     <button class="sync-btn" onclick="resetToken()" title="重設Token" style="font-size:0.7rem;">⚙️</button>
     <button class="sync-btn" id="syncBtn" onclick="syncAll()" title="重新整理">↻</button>
   </div>
@@ -871,6 +879,11 @@ body {
     <div class="section-title" style="margin-top:8px;">📊 儀表板</div>
     <div id="dashContent"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
   </div>
+  <!-- PAGE: DASHBOARD -->
+  <div class="page" id="page-dash">
+    <div class="section-title" style="margin-top:8px;">📊 儀表板</div>
+    <div id="dashContent"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
+  </div>
 
 </main>
 
@@ -989,6 +1002,16 @@ body {
     
     <button class="btn-primary" onclick="saveSetup()">🚀 開始使用</button>
     <div id="setupError" style="color:#ef5350; font-size:0.82rem; text-align:center; margin-top:12px; display:none;">⚠️ Token 驗證失敗，請確認後再試</div>
+  </div>
+</div>
+
+<!-- DASH DRILL MODAL -->
+<div id="dashDrillModal" onclick="closeDashDrill()" style="display:none;position:fixed;inset:0;background:rgba(13,33,55,0.45);z-index:800;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);">
+  <div onclick="event.stopPropagation()" style="background:var(--surface);border-radius:24px 24px 0 0;width:100%;max-height:80dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 20px calc(20px + var(--safe-bottom));">
+    <div class="modal-handle"></div>
+    <div id="dashDrillTitle" style="font-family:var(--font-display);font-size:1rem;color:var(--gold);margin-bottom:14px;"></div>
+    <div id="dashDrillBody"></div>
+    <button class="btn-secondary" onclick="closeDashDrill()" style="margin-top:12px;">關閉</button>
   </div>
 </div>
 
@@ -1169,6 +1192,7 @@ function switchPage(page, btn) {
   if (page === 'shop') loadShopping();
   if (page === 'cal') loadCalendar();
   if (page === 'add') loadAddForm();
+  if (page === 'dash') loadDashboard();
   if (page === 'dash') loadDashboard();
 }
 
@@ -1590,11 +1614,10 @@ function setupCombo(id, state, multi=false) {
     if (!item.status) return '';
     const s = item.status;
     let cls, label;
-    // Map exact Notion status names (from screenshots: 專案進行中, 未關始, 已擱置, 進行中, 已取消, 已完成, 未開始, 籌備中, 追蹤中, 等待中)
     if (s.includes('進行中'))                              { cls='status-active';  label='進行中'; }
     else if (s.includes('追蹤中'))                         { cls='status-active';  label='追蹤中'; }
     else if (s.includes('籌備中'))                         { cls='status-active';  label='籌備中'; }
-    else if (s.includes('等待中'))                         { cls='status-active';  label='等待中'; }
+    else if (s.includes('等待中'))                         { cls='status-pending'; label='等待中'; }
     else if (s.includes('已完成'))                         { cls='status-done';    label='已完成'; }
     else if (s.includes('已取消') || s.includes('放棄'))   { cls='status-paused';  label='已取消'; }
     else if (s.includes('已擱置') || s.includes('暫停'))   { cls='status-paused';  label='已擱置'; }
@@ -1604,21 +1627,40 @@ function setupCombo(id, state, multi=false) {
   }
 
   function sortedItems(items) {
-    return [...items].sort((a, b) => {
-      const priority = (it) => {
-        const s = it.status || '';
-        if (s.includes('進行中')||s.includes('追蹤中')||s.includes('籌備中')||s.includes('等待中')) return 0;
-        if (s.includes('未開始')||s.includes('未關始')) return 1;
-        if (s.includes('已完成')||s.includes('已取消')||s.includes('已擱置')||s.includes('放棄')) return 2;
-        return 1;
-      };
-      return priority(a) - priority(b);
-    });
+    const rank = s => {
+      if (s.includes('進行中'))  return 0;
+      if (s.includes('追蹤中'))  return 1;
+      if (s.includes('籌備中'))  return 2;
+      if (s.includes('未開始') || s.includes('未關始')) return 3;
+      if (s.includes('等待中'))  return 4;   // ← 等待中 排在未開始後面
+      if (s.includes('已完成'))  return 10;
+      if (s.includes('已取消') || s.includes('放棄') || s.includes('已擱置')) return 11;
+      return 5;
+    };
+    return [...items].sort((a, b) => rank(a.status||'') - rank(b.status||''));
+  }
+
+  function positionDrop() {
+    const rect = input.getBoundingClientRect();
+    const belowSpace = window.innerHeight - rect.bottom - 8;
+    const aboveSpace = rect.top - 8;
+    const useBelow = belowSpace >= aboveSpace || belowSpace >= 150;
+    const availH = Math.min(useBelow ? belowSpace : aboveSpace, window.innerHeight * 0.52);
+    drop.style.maxHeight = Math.max(availH, 120) + 'px';
+    drop.style.left  = rect.left + 'px';
+    drop.style.width = rect.width + 'px';
+    if (useBelow) {
+      drop.style.top    = (rect.bottom + 4) + 'px';
+      drop.style.bottom = 'auto';
+    } else {
+      drop.style.top    = 'auto';
+      drop.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+    }
   }
 
   function renderDrop(q='') {
     const all = sortedItems(state.items);
-    const filtered = all.filter(it => it.name.toLowerCase().includes(q.toLowerCase())).slice(0,25);
+    const filtered = all.filter(it => it.name.toLowerCase().includes(q.toLowerCase())).slice(0, 50);
     if (!filtered.length) { drop.innerHTML = `<div class="combo-empty">找不到「${q}」</div>`; return; }
     drop.innerHTML = filtered.map(it => {
       const sel = state.selected?.id === it.id ? ' selected-opt' : '';
@@ -1635,9 +1677,14 @@ function setupCombo(id, state, multi=false) {
     });
   }
 
-  input.addEventListener('focus', () => { renderDrop(input.value); drop.classList.add('open'); });
-  input.addEventListener('input', () => { renderDrop(input.value); drop.classList.add('open'); });
-  document.addEventListener('click', e => { if (!e.target.closest(`#combo-${id}`)) drop.classList.remove('open'); });
+  function openDrop() { positionDrop(); renderDrop(input.value); drop.classList.add('open'); }
+  input.addEventListener('focus', openDrop);
+  input.addEventListener('input', () => { positionDrop(); renderDrop(input.value); drop.classList.add('open'); });
+  window.addEventListener('scroll', () => { if (drop.classList.contains('open')) positionDrop(); }, { passive: true, capture: true });
+  window.addEventListener('resize', () => { if (drop.classList.contains('open')) positionDrop(); }, { passive: true });
+  document.addEventListener('click', e => {
+    if (!e.target.closest(`#combo-${id}`) && e.target !== drop) drop.classList.remove('open');
+  });
 }
 
 function toggleShopPicker() {
@@ -2419,161 +2466,273 @@ async function syncAll() {
 }
 
 // ═══════════════════════════════════════
-// DASHBOARD
+// WEATHER (Open-Meteo, no API key needed)
+// ═══════════════════════════════════════
+const WX_CODE_ICON = {0:'☀️',1:'🌤',2:'⛅',3:'🌥',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'🌨',73:'🌨',75:'🌨',80:'🌦',81:'🌦',82:'🌩',95:'⛈',96:'⛈',99:'⛈'};
+async function loadWeather() {
+  try {
+    let lat = 22.6273, lon = 120.3014; // Kaohsiung default
+    try {
+      const pos = await new Promise((res,rej)=>navigator.geolocation?.getCurrentPosition(res,rej,{timeout:3500})||rej());
+      lat = pos.coords.latitude; lon = pos.coords.longitude;
+    } catch(e) {}
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,apparent_temperature&timezone=Asia%2FTaipei`);
+    const d = await r.json();
+    const temp  = Math.round(d.current.temperature_2m);
+    const feels = Math.round(d.current.apparent_temperature);
+    const icon  = WX_CODE_ICON[d.current.weathercode] || '🌡';
+    document.getElementById('weatherIcon').textContent = icon;
+    document.getElementById('weatherTemp').textContent = temp+'°C';
+    document.getElementById('weatherDesc').textContent = '體感'+feels+'°';
+  } catch(e) {
+    document.getElementById('weatherIcon').textContent = '🌡';
+    document.getElementById('weatherTemp').textContent = '—';
+    document.getElementById('weatherDesc').textContent = '無法取得';
+  }
+}
+function refreshWeather() { showToast('🌤 更新中...'); loadWeather(); }
+
+// ═══════════════════════════════════════
+// DASHBOARD — drill-down modal
+// ═══════════════════════════════════════
+let _dashAllTasks=[], _dashOverdueTasks=[], _dashDoingTasks=[], _dashTodoTasks=[], _dashDoneTasks=[], _dashCancelledTasks=[], _dashUrgentTasks=[];
+
+function closeDashDrill() { document.getElementById('dashDrillModal').style.display='none'; }
+
+function openDashDrill(title, taskList) {
+  if (!taskList || !taskList.length) { showToast('此分類目前沒有任務'); return; }
+  document.getElementById('dashDrillTitle').textContent = title;
+  const t0 = today();
+  const rows = taskList.map(t => {
+    const statusLabel = (t.status||'').replace(/[🧋🍶🥛☕🍷🍵]/g,'').trim() || '—';
+    const clsMap = {doing:'status-active',done:'status-done',cancelled:'status-paused'};
+    const sCls = clsMap[t.cls]||'status-pending';
+    const isOD = t.due && t.due < t0;
+    const short = t.name.length>40 ? t.name.slice(0,40)+'…' : t.name;
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border-radius:8px;margin-bottom:5px;background:var(--surface2);border:1px solid var(--surface3);">
+      <span class="combo-status-tag ${sCls}" style="margin-left:0;flex-shrink:0;margin-top:2px;">${statusLabel}</span>
+      <span style="flex:1;font-size:0.84rem;color:var(--text);line-height:1.4;">${short}</span>
+      ${t.due?`<span style="font-size:0.7rem;white-space:nowrap;${isOD?'color:#ef5350;font-weight:600;':'color:var(--text3);'}">${isOD?'⚠️':''} ${t.due}</span>`:''}
+    </div>`;
+  }).join('');
+  document.getElementById('dashDrillBody').innerHTML = rows;
+  const modal = document.getElementById('dashDrillModal');
+  modal.style.display = 'flex';
+}
+
+// ═══════════════════════════════════════
+// DASHBOARD — main
 // ═══════════════════════════════════════
 async function loadDashboard() {
   const el = document.getElementById('dashContent');
   el.innerHTML = '<div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>';
   try {
-    // Fetch all non-archived tasks
-    const data = await notionQuery(DB.TASK, {
-      property: 'Archive 封存', checkbox: { equals: false }
-    });
-    const tasks = data.results || [];
-    const t = today();
+    const t0 = today();
+    const sevenDaysAgo = (() => { const d=new Date(); d.setDate(d.getDate()-6); return d.toISOString().split('T')[0]; })();
 
-    // ── Counters ──
-    let total = tasks.length;
-    let doing = 0, todo = 0, done = 0, cancelled = 0, overdue = 0;
-    const tagCount = {};
-    const typeCount = {};
-    const urgentTasks = []; // priority 1 or 2, not done
-    const overdueList = [];
+    // Parallel: tasks + projects + habits
+    const [taskData, projData, habitData] = await Promise.all([
+      notionQuery(DB.TASK, { property:'Archive 封存', checkbox:{equals:false} }),
+      notionQuery(DB.PROJECT, { property:'Archives', checkbox:{equals:false} }).catch(()=>({results:[]})),
+      notionQuery(DB.HABIT, { and:[
+        {property:'日期', date:{on_or_after: sevenDaysAgo}},
+        {property:'日期', date:{on_or_before: t0}}
+      ]}).catch(()=>({results:[]}))
+    ]);
 
-    for (const page of tasks) {
-      const p = page.properties;
-      const status = getProp(p, 'Status 任務階段', 'status') || '';
+    const tasks    = taskData.results || [];
+    const projects = projData.results || [];
+    const habits   = habitData.results || [];
+
+    // ── Task counters ──
+    let total=0, doing=0, todo=0, done=0, cancelled=0, overdue=0;
+    const tagCount={}, typeCount={};
+    _dashAllTasks=[]; _dashOverdueTasks=[]; _dashDoingTasks=[]; _dashTodoTasks=[]; _dashDoneTasks=[]; _dashCancelledTasks=[]; _dashUrgentTasks=[];
+
+    for (const pg of tasks) {
+      const p = pg.properties;
+      const status = getProp(p,'Status 任務階段','status')||'';
       const due    = fmtDate(p['Due 排程執行日']?.date?.start);
-      const prior  = getProp(p, 'Priority 任務優先值', 'select') || '';
-      const tags   = getProp(p, 'Tags 任務隸屬', 'multi_select') || [];
-      const type   = getProp(p, 'Type 任務類型', 'select') || '';
-      const name   = getProp(p, 'Tasks Name', 'title') || '未命名';
+      const prior  = getProp(p,'Priority 任務優先值','select')||'';
+      const tags   = getProp(p,'Tags 任務隸屬','multi_select')||[];
+      const type   = getProp(p,'Type 任務類型','select')||'';
+      const name   = getProp(p,'Tasks Name','title')||'未命名';
+      const cls    = calStatusClass(status);
+      const obj    = {name,status,cls,due};
 
-      const cls = calStatusClass(status);
-      if (cls === 'doing')     doing++;
-      else if (cls === 'done') done++;
-      else if (cls === 'cancelled') cancelled++;
-      else todo++;
+      total++;
+      if (cls==='doing')     { doing++;    _dashDoingTasks.push(obj); }
+      else if (cls==='done') { done++;     _dashDoneTasks.push(obj); }
+      else if (cls==='cancelled'){ cancelled++; _dashCancelledTasks.push(obj); }
+      else                   { todo++;     _dashTodoTasks.push(obj); }
 
-      if (due && due < t && cls !== 'done' && cls !== 'cancelled') {
-        overdue++;
-        overdueList.push({ name, due, status, cls });
-      }
-      for (const tag of tags) tagCount[tag] = (tagCount[tag]||0) + 1;
-      if (type) typeCount[type] = (typeCount[type]||0) + 1;
-      if ((prior.includes('1級')||prior.includes('2級')) && cls !== 'done' && cls !== 'cancelled') {
-        urgentTasks.push({ name, status, due, cls, prior });
-      }
+      _dashAllTasks.push(obj);
+      if (due && due < t0 && cls!=='done' && cls!=='cancelled') { overdue++; _dashOverdueTasks.push(obj); }
+      for (const tag of tags) tagCount[tag]=(tagCount[tag]||0)+1;
+      if (type) typeCount[type]=(typeCount[type]||0)+1;
+      if ((prior.includes('1級')||prior.includes('2級')) && cls!=='done'&&cls!=='cancelled') _dashUrgentTasks.push(obj);
     }
 
-    const completionRate = total > 0 ? Math.round(done / total * 100) : 0;
-    const activeRate     = total > 0 ? Math.round(doing / total * 100) : 0;
-
-    // ── Status color map ──
-    const statusColors = {
-      doing: 'var(--blue-light)', todo: 'var(--text3)',
-      done: 'var(--green-light)', cancelled: '#ef5350'
-    };
-
-    // ── Tag chips ──
-    const topTags = Object.entries(tagCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
-
-    // ── Type breakdown ──
+    const rate = total>0 ? Math.round(done/total*100) : 0;
+    const SC = {doing:'var(--blue-light)',todo:'var(--text3)',done:'var(--green-light)',cancelled:'#ef5350'};
+    const topTags  = Object.entries(tagCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
     const typeList = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
 
-    // ── HTML ──
+    // ── Projects ──
+    const projRows = projects.map(pg=>{
+      const pp=pg.properties;
+      const name=pp['Name']?.title?.[0]?.plain_text||pp['專案名稱']?.title?.[0]?.plain_text||'未命名';
+      const status=pp['Status']?.status?.name||pp['狀態']?.status?.name||'';
+      const cls=status.includes('進行')||status.includes('追蹤')?'doing':status.includes('完成')?'done':status.includes('放棄')||status.includes('取消')||status.includes('擱置')?'cancelled':'todo';
+      return {name,status,cls};
+    }).sort((a,b)=>({doing:0,todo:1,done:2,cancelled:3}[a.cls]||1)-({doing:0,todo:1,done:2,cancelled:3}[b.cls]||1));
+    const doingProj=projRows.filter(p=>p.cls==='doing');
+    const todoProj =projRows.filter(p=>p.cls==='todo');
+
+    // ── Habits 7-day ──
+    const hDays = habits.length || 7;
+    const habitKeys=[
+      {key:'●🌟MOVE ON',label:'MOVE ON'},
+      {key:'●🌅提早起床',label:'提早起床'},
+      {key:'●📒早晨規劃',label:'早晨規劃'},
+      {key:'●💧喝水1500ML',label:'喝水'},
+      {key:'●👟有氧運動',label:'有氧運動'},
+      {key:'●💊戒精緻糖',label:'戒精緻糖'},
+      {key:'◆✈️空服準備',label:'空服準備'},
+      {key:'◆🗞️語言學習',label:'語言學習'}
+    ];
+    const hCounts={};
+    for (const h of habitKeys) hCounts[h.key]=0;
+    for (const pg of habits) { for (const h of habitKeys) { if(pg.properties[h.key]?.checkbox) hCounts[h.key]++; } }
+
+    // ══ HTML ══
     let html = `
 <div class="dash-grid">
-  <div class="dash-card">
+  <div class="dash-card" style="cursor:pointer" onclick="openDashDrill('📋 所有未封存任務 (${total}件)',_dashAllTasks)">
     <div class="dash-num">${total}</div>
     <div class="dash-label">總任務數</div>
-    <div class="dash-sub">未封存</div>
+    <div class="dash-sub" style="color:var(--wine-light);font-size:0.72rem;">點按查看 ›</div>
   </div>
-  <div class="dash-card ${overdue>0?'dash-overdue':''}">
+  <div class="dash-card${overdue>0?' dash-overdue':''}" style="cursor:pointer" onclick="openDashDrill('⚠️ 逾期未完成任務 (${overdue}件)',_dashOverdueTasks)">
     <div class="dash-num">${overdue}</div>
-    <div class="dash-label">⚠️ 逾期未完成</div>
-    <div class="dash-sub">${overdue>0?'需要處理':'目前良好 ✨'}</div>
+    <div class="dash-label">${overdue>0?'⚠️ 逾期未完成':'逾期未完成'}</div>
+    <div class="dash-sub" style="font-size:0.72rem;${overdue>0?'color:#ef5350;':'color:var(--green-light);'}">${overdue>0?'點按查看 ›':'目前良好 ✨'}</div>
   </div>
-  <div class="dash-card full">
-    <div class="dash-label">完成率</div>
-    <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
-      <div style="flex:1;">
-        <div class="dash-bar-wrap"><div class="dash-bar green" style="width:${completionRate}%"></div></div>
-      </div>
-      <div style="font-size:1.1rem;font-weight:700;color:var(--green-light);">${completionRate}%</div>
+  <div class="dash-card full" style="cursor:pointer" onclick="openDashDrill('🔵 進行中任務 (${doing}件)',_dashDoingTasks)">
+    <div class="dash-label">完成率 <span style="font-size:0.62rem;color:var(--text3);font-weight:400;">點按看進行中</span></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+      <div style="flex:1"><div class="dash-bar-wrap"><div class="dash-bar green" style="width:${rate}%"></div></div></div>
+      <b style="color:var(--green-light);font-size:1.05rem;">${rate}%</b>
     </div>
-    <div class="dash-sub" style="margin-top:4px;">已完成 ${done} ／ 進行中 ${doing} ／ 待處理 ${todo} ／ 已取消 ${cancelled}</div>
+    <div class="dash-sub" style="margin-top:5px;">✅${done} 完成 ／ 🔵${doing} 進行中 ／ ⬜${todo} 待處理 ／ ❌${cancelled} 取消</div>
   </div>
 </div>
 
 <div class="dash-section-title">📊 狀態分佈</div>
 <div class="dash-card" style="margin-bottom:12px;">
   <div class="dash-status-row">
-    ${[['doing','進行中 / 追蹤中',doing],['todo','待處理',todo],['done','已完成',done],['cancelled','已取消',cancelled]].map(([cls,label,count])=>`
-    <div class="dash-status-item">
-      <div class="dash-status-dot" style="background:${statusColors[cls]};"></div>
+    ${[['doing','進行中 / 追蹤中',doing,_dashDoingTasks],['todo','待處理',todo,_dashTodoTasks],['done','已完成',done,_dashDoneTasks],['cancelled','已取消',cancelled,_dashCancelledTasks]].map(([cls,label,count,arr])=>`
+    <div class="dash-status-item" style="cursor:pointer" onclick="openDashDrill('${label} (${count}件)',${cls==='doing'?'_dashDoingTasks':cls==='todo'?'_dashTodoTasks':cls==='done'?'_dashDoneTasks':'_dashCancelledTasks'})">
+      <div class="dash-status-dot" style="background:${SC[cls]}"></div>
       <div class="dash-status-name">${label}</div>
-      <div style="flex:1;margin:0 8px;"><div class="dash-bar-wrap"><div class="dash-bar" style="width:${total>0?Math.round(count/total*100):0}%;background:${statusColors[cls]};"></div></div></div>
+      <div style="flex:1;margin:0 8px"><div class="dash-bar-wrap"><div class="dash-bar" style="width:${total>0?Math.round(count/total*100):0}%;background:${SC[cls]}"></div></div></div>
       <div class="dash-status-count">${count}</div>
     </div>`).join('')}
   </div>
 </div>`;
 
-    if (topTags.length) {
-      html += `
+    if (topTags.length) html += `
 <div class="dash-section-title">🏷️ 任務標籤</div>
 <div class="dash-card" style="margin-bottom:12px;">
   <div class="dash-tag-row">
     ${topTags.map(([tag,cnt])=>`<span class="dash-tag-chip">${tag} <b>${cnt}</b></span>`).join('')}
   </div>
 </div>`;
-    }
 
-    if (typeList.length) {
-      html += `
-<div class="dash-section-title">📂 任務類型分佈</div>
+    if (typeList.length) html += `
+<div class="dash-section-title">📂 任務類型</div>
 <div class="dash-card" style="margin-bottom:12px;">
   <div class="dash-status-row">
     ${typeList.map(([type,cnt])=>{
-      const short = type.replace(/[🟧🟨🟩🟪]/g,'').trim().slice(0,8);
+      const short=type.replace(/[🟧🟨🟩🟪]/g,'').trim().slice(0,10);
       return `<div class="dash-status-item">
-        <div class="dash-status-name" style="font-size:0.78rem;">${short}</div>
-        <div style="flex:1;margin:0 8px;"><div class="dash-bar-wrap"><div class="dash-bar" style="width:${total>0?Math.round(cnt/total*100):0}%;"></div></div></div>
+        <div class="dash-status-name" style="font-size:0.78rem">${short}</div>
+        <div style="flex:1;margin:0 8px"><div class="dash-bar-wrap"><div class="dash-bar" style="width:${total>0?Math.round(cnt/total*100):0}%"></div></div></div>
         <div class="dash-status-count">${cnt}</div>
       </div>`;
     }).join('')}
   </div>
 </div>`;
+
+    if (projRows.length) html += `
+<div class="dash-section-title">🗂️ 專案狀況</div>
+<div class="dash-grid" style="margin-bottom:10px;">
+  <div class="dash-card" style="cursor:pointer" onclick="openDashDrill('🔵 進行中專案 (${doingProj.length}個)',${JSON.stringify(doingProj.map(p=>({name:p.name,status:p.status,cls:p.cls,due:null})))})">
+    <div class="dash-num" style="font-size:1.5rem;color:var(--blue-light)">${doingProj.length}</div>
+    <div class="dash-label">進行中</div>
+  </div>
+  <div class="dash-card" style="cursor:pointer" onclick="openDashDrill('⬜ 待啟動專案 (${todoProj.length}個)',${JSON.stringify(todoProj.map(p=>({name:p.name,status:p.status,cls:p.cls,due:null})))})">
+    <div class="dash-num" style="font-size:1.5rem;color:var(--text3)">${todoProj.length}</div>
+    <div class="dash-label">待啟動</div>
+  </div>
+</div>
+<div class="dash-card" style="margin-bottom:12px;">
+  <div class="dash-status-row">
+    ${projRows.slice(0,10).map(pg=>{
+      const dot=pg.cls==='doing'?'var(--blue-light)':pg.cls==='done'?'var(--green-light)':pg.cls==='cancelled'?'#ef5350':'var(--text3)';
+      const sLabel=(pg.status||'').replace(/[🧋🍶🥛☕🍷🍵●◆🌟🌅📒💧👟💊✈️🗞]/g,'').trim().slice(0,5);
+      const short=pg.name.length>28?pg.name.slice(0,28)+'…':pg.name;
+      return `<div class="dash-status-item">
+        <div class="dash-status-dot" style="background:${dot}"></div>
+        <div class="dash-status-name" style="font-size:0.8rem">${short}</div>
+        <span style="font-size:0.62rem;padding:1px 5px;border-radius:6px;background:${dot}22;color:${dot};white-space:nowrap">${sLabel}</span>
+      </div>`;
+    }).join('')}
+    ${projRows.length>10?`<div style="font-size:0.72rem;color:var(--text3);padding-top:4px;">共 ${projRows.length} 個專案</div>`:''}
+  </div>
+</div>`;
+
+    if (habits.length>0) html += `
+<div class="dash-section-title">🧘 習慣打卡（近 ${hDays} 天）</div>
+<div class="dash-card" style="margin-bottom:12px;">
+  <div class="dash-status-row">
+    ${habitKeys.map(h=>{
+      const cnt=hCounts[h.key]||0;
+      const pct=Math.round(cnt/hDays*100);
+      const bar=pct>=80?'var(--green-light)':pct>=50?'var(--wine-light)':'var(--orange-light)';
+      return `<div class="dash-status-item">
+        <div class="dash-status-name" style="font-size:0.78rem;min-width:58px">${h.label}</div>
+        <div style="flex:1;margin:0 8px"><div class="dash-bar-wrap"><div class="dash-bar" style="width:${pct}%;background:${bar}"></div></div></div>
+        <div class="dash-status-count" style="font-size:0.72rem">${cnt}/${hDays}</div>
+      </div>`;
+    }).join('')}
+  </div>
+</div>`;
+
+    if (_dashUrgentTasks.length) {
+      html += `<div class="dash-section-title" style="cursor:pointer" onclick="openDashDrill('🔴 高優先任務 (${_dashUrgentTasks.length}件)',_dashUrgentTasks)">🔴 高優先任務 <span style="font-size:0.7rem;font-weight:400;opacity:0.6">點按全覽 ›</span></div>`;
+      for (const t of _dashUrgentTasks.slice(0,5)) {
+        const isOD=t.due&&t.due<t0;
+        const short=t.name.length>32?t.name.slice(0,32)+'…':t.name;
+        const sLabel=(t.status||'').replace(/[🧋🍶🥛☕🍷🍵]/g,'').trim();
+        const sCls=t.cls==='doing'?'status-active':t.cls==='done'?'status-done':'status-pending';
+        html+=`<div class="dash-task-row"><span class="combo-status-tag ${sCls}" style="margin-left:0;flex-shrink:0">${sLabel}</span><span style="flex:1;font-size:0.83rem">${short}</span>${isOD?`<span class="dash-urgent-badge">逾期</span>`:t.due?`<span style="font-size:0.7rem;color:var(--text3)">${t.due}</span>`:''}</div>`;
+      }
+      if (_dashUrgentTasks.length>5) html+=`<div style="font-size:0.75rem;color:var(--text3);text-align:center;padding:6px;cursor:pointer" onclick="openDashDrill('🔴 高優先任務',_dashUrgentTasks)">+${_dashUrgentTasks.length-5} 更多</div>`;
     }
 
-    if (urgentTasks.length) {
-      html += `<div class="dash-section-title">🔴 高優先任務</div>`;
-      for (const t of urgentTasks.slice(0, 8)) {
-        const isOverdue = t.due && t.due < today();
-        const short = t.name.length > 30 ? t.name.slice(0,30)+'…' : t.name;
-        const statusLabel = t.status.replace(/[🧋🍶🥛☕🍷🍵]/g,'').trim();
-        html += `<div class="dash-task-row">
-          <span class="dash-task-status status-${t.cls==='doing'?'active':t.cls==='done'?'done':'pending'}">${statusLabel}</span>
-          <span style="flex:1;font-size:0.83rem;">${short}</span>
-          ${isOverdue ? `<span class="dash-urgent-badge">逾期</span>` : t.due ? `<span style="font-size:0.72rem;color:var(--text3);">${t.due}</span>` : ''}
-        </div>`;
+    if (_dashOverdueTasks.length) {
+      html += `<div class="dash-section-title" style="color:#ef5350;cursor:pointer" onclick="openDashDrill('⚠️ 逾期清單 (${_dashOverdueTasks.length}件)',_dashOverdueTasks)">⚠️ 逾期清單 <span style="font-size:0.7rem;font-weight:400;opacity:0.6">點按全覽 ›</span></div>`;
+      for (const t of _dashOverdueTasks.slice(0,4)) {
+        const short=t.name.length>32?t.name.slice(0,32)+'…':t.name;
+        html+=`<div class="dash-task-row" style="border-color:rgba(198,40,40,0.2)"><span style="flex:1;font-size:0.83rem">${short}</span><span style="font-size:0.7rem;color:#ef5350;font-weight:600">${t.due}</span></div>`;
       }
-    }
-
-    if (overdueList.length) {
-      html += `<div class="dash-section-title" style="color:#ef5350;">⚠️ 逾期清單</div>`;
-      for (const t of overdueList.slice(0, 6)) {
-        const short = t.name.length > 28 ? t.name.slice(0,28)+'…' : t.name;
-        html += `<div class="dash-task-row" style="border-color:rgba(198,40,40,0.2);">
-          <span style="flex:1;font-size:0.83rem;">${short}</span>
-          <span style="font-size:0.72rem;color:#ef5350;">${t.due}</span>
-        </div>`;
-      }
+      if (_dashOverdueTasks.length>4) html+=`<div style="font-size:0.75rem;color:#ef5350;text-align:center;padding:6px;cursor:pointer" onclick="openDashDrill('⚠️ 逾期清單',_dashOverdueTasks)">+${_dashOverdueTasks.length-4} 更多</div>`;
     }
 
     el.innerHTML = html;
   } catch(e) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗</div></div>`;
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗</div></div>`;
     console.error(e);
   }
 }
@@ -2645,10 +2804,10 @@ function initApp() {
   document.getElementById('headerDate').textContent = todayFormatted();
   document.getElementById('f_date').value = today();
   document.getElementById('subTabs').style.display = 'flex';
-  // Init date nav labels
   updateTaskDateLabel();
   updateJournalDateLabel();
   updateHabitDateLabel();
+  loadWeather();
   loadTasks();
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
