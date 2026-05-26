@@ -663,37 +663,120 @@ body {
 .weather-day-max { font-size: 0.82rem; font-weight: 700; color: var(--text); }
 .weather-day-min { font-size: 0.7rem; color: var(--text3); }
 
-/* ── MOBILE RESPONSIVE ── */
-@media (max-width: 380px) {
-  .nav-tab { padding: 6px 10px; font-size: 0.76rem; }
-  .task-card { padding: 10px 12px; }
-  .dash-grid { gap: 6px; }
-  .dash-num { font-size: 1.6rem; }
-  .bottom-nav-item { font-size: 0.58rem; }
-  .bottom-nav-item .nav-icon { font-size: 1.1rem; }
-  .action-btn { min-width: 60px; font-size: 0.72rem; }
-  .action-btn .btn-icon { font-size: 1.1rem; }
-}
-/* Add task form: stack all fields vertically on mobile */
-#page-add .form-row {
-  flex-direction: column;
-}
-#page-add .form-row .form-group {
-  flex: unset;
-  width: 100%;
-}
-@media (min-width: 600px) {
-  body { max-width: 520px; margin: 0 auto; }
-  .bottom-nav { max-width: 520px; left: 50%; transform: translateX(-50%); }
-  .page { padding-left: 20px; padding-right: 20px; }
-  /* Restore 2-col on desktop for add form */
+/* ── RESPONSIVE ── */
+/* Add task form: always single column on mobile */
+#page-add .form-row { flex-direction: column; }
+#page-add .form-row .form-group { flex: unset; width: 100%; }
+/* Desktop: restore 2-col for add form, full width layout */
+@media (min-width: 680px) {
   #page-add .form-row { flex-direction: row; }
   #page-add .form-row .form-group { flex: 1; width: auto; }
+  .page { padding-left: 24px; padding-right: 24px; }
 }
 
 /* ── FORM REQUIRED VALIDATION ── */
 .form-input.invalid, .form-select.invalid { border-color: #ef5350 !important; }
 .tag-btn-required { box-shadow: 0 0 0 2px #ef5350; }
+
+/* ── DARK MODE ── */
+body.dark-mode {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface2: #1c2128;
+  --surface3: #2d3748;
+  --wine: #2a7fd4;
+  --wine-light: #4a9fe4;
+  --wine-glow: rgba(42,127,212,0.2);
+  --gold: #7ab3e0;
+  --gold-light: #9ecbf0;
+  --text: #e6edf3;
+  --text2: #b0c4d8;
+  --text3: #6e8fa8;
+  --green: #2ea87a;
+  --green-light: #3ecf96;
+  --orange-light: #f0943a;
+  --purple-light: #a47ce0;
+}
+body.dark-mode .form-input,
+body.dark-mode .form-select,
+body.dark-mode .form-textarea,
+body.dark-mode .combo-input { background: var(--surface3); color: var(--text); }
+body.dark-mode .modal,
+body.dark-mode .task-edit-panel,
+body.dark-mode .cal-detail-panel { background: var(--surface); }
+
+/* ── SEARCH BAR ── */
+.search-bar-wrap { position: relative; margin-bottom: 10px; }
+.search-bar-input {
+  width: 100%; background: var(--surface);
+  border: 1px solid var(--surface3); border-radius: 50px;
+  padding: 9px 40px 9px 40px;
+  color: var(--text); font-size: 0.88rem;
+  font-family: var(--font-body); outline: none;
+  transition: border-color 0.2s;
+  box-shadow: 0 1px 4px rgba(26,95,168,0.06);
+}
+.search-bar-input:focus { border-color: var(--wine-light); }
+.search-bar-icon {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 0.9rem; color: var(--text3); pointer-events: none;
+}
+.search-bar-clear {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--text3);
+  font-size: 1rem; cursor: pointer; display: none; padding: 4px;
+}
+
+/* ── HEADER PROGRESS ── */
+.header-progress { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.header-progress-bar {
+  width: 80px; height: 4px; background: var(--surface3);
+  border-radius: 2px; overflow: hidden; flex-shrink: 0;
+}
+.header-progress-fill {
+  height: 100%; background: var(--green-light);
+  border-radius: 2px; transition: width 0.5s ease;
+}
+.header-progress-text { font-size: 0.67rem; color: var(--text3); white-space: nowrap; }
+
+/* ── SMART HINT ── */
+.smart-hint {
+  font-size: 0.78rem; padding: 8px 14px;
+  border-radius: var(--radius-sm); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px; border-left: 3px solid;
+  line-height: 1.4;
+}
+.smart-hint.positive { background: rgba(40,168,122,0.1); border-color: var(--green-light); color: var(--green-light); }
+.smart-hint.warning  { background: rgba(198,40,40,0.08); border-color: #ef5350; color: #ef5350; }
+.smart-hint.neutral  { background: var(--surface2); border-color: var(--wine-light); color: var(--text2); }
+.smart-hint.urgent   { background: rgba(180,80,20,0.1); border-color: var(--orange-light); color: var(--orange-light); }
+
+/* ── BATCH SELECT ── */
+.task-card.batch-selected {
+  border-color: var(--wine-light) !important;
+  background: rgba(26,95,168,0.06);
+  box-shadow: 0 0 0 2px var(--wine-glow);
+}
+.task-card.batch-selected::before { background: var(--wine-light) !important; }
+.batch-toolbar {
+  position: sticky; top: 56px; z-index: 90;
+  background: var(--wine); color: white;
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  display: none; align-items: center; gap: 8px;
+  margin-bottom: 8px; box-shadow: 0 4px 16px var(--wine-glow);
+  flex-wrap: wrap;
+}
+.batch-toolbar.visible { display: flex; animation: fadeIn 0.2s ease; }
+.batch-btn {
+  padding: 5px 11px; border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.15);
+  color: white; font-size: 0.76rem; font-weight: 500;
+  cursor: pointer; font-family: var(--font-body); white-space: nowrap;
+}
+.batch-btn:active { background: rgba(255,255,255,0.3); }
+.batch-btn.danger { border-color: rgba(255,150,150,0.4); background: rgba(255,80,80,0.2); }
+.batch-count { font-size: 0.82rem; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -710,12 +793,27 @@ body {
         <span id="weatherDesc" style="color:var(--text3);">天氣</span>
       </div>
     </div>
+    <!-- Today progress bar -->
+    <div class="header-progress" id="headerProgress" style="display:none;">
+      <div class="header-progress-bar">
+        <div class="header-progress-fill" id="headerProgressFill" style="width:0%"></div>
+      </div>
+      <span class="header-progress-text" id="headerProgressText">0/0 件</span>
+    </div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+    <button class="sync-btn" id="darkModeBtn" onclick="toggleDarkMode()" title="深色模式">🌙</button>
     <button class="sync-btn" onclick="resetToken()" title="重設Token" style="font-size:0.7rem;">⚙️</button>
     <button class="sync-btn" id="syncBtn" onclick="syncAll()" title="重新整理">↻</button>
   </div>
 </header>
+<!-- Smart hint bar (shown on daily/tasks tab) -->
+<div id="smartHintBar" style="padding:0 16px;display:none;">
+  <div class="smart-hint neutral" id="smartHintContent">
+    <span id="smartHintIcon">💡</span>
+    <span id="smartHintText"></span>
+  </div>
+</div>
 
 <!-- NAV TABS (for daily page sub-tabs) -->
 <div class="nav-tabs" id="subTabs" style="display:none;">
@@ -765,6 +863,21 @@ body {
         <button class="date-nav-btn" onclick="shiftTaskDate(1)">▶</button>
       </div>
       <div class="section-title" id="taskSectionTitle">今日作戰計畫</div>
+      <!-- Search bar -->
+      <div class="search-bar-wrap" id="taskSearchWrap">
+        <span class="search-bar-icon">🔍</span>
+        <input class="search-bar-input" id="taskSearchInput" placeholder="搜尋所有任務..." oninput="onTaskSearch(this.value)" onfocus="onTaskSearchFocus()">
+        <button class="search-bar-clear" id="taskSearchClear" onclick="clearTaskSearch()">✕</button>
+      </div>
+      <!-- Batch toolbar (appears on long press / multi-select) -->
+      <div class="batch-toolbar" id="batchToolbar">
+        <span class="batch-count" id="batchCount">0</span> 件已選
+        <button class="batch-btn" onclick="batchMoveToday()">📅 移至今天</button>
+        <button class="batch-btn" onclick="batchMoveDatePick()">📆 指定日期</button>
+        <button class="batch-btn danger" onclick="batchArchive()">📦 封存</button>
+        <button class="batch-btn" onclick="batchCancelSelect()" style="margin-left:auto;">✕ 取消</button>
+      </div>
+      <input type="date" id="batchDatePicker" style="display:none;margin-bottom:8px;" class="form-input" onchange="batchMoveDate(this.value)">
       <div id="taskList"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
     </div>
 
@@ -1540,8 +1653,10 @@ async function loadTasksByDate() {
           ? `<span class="meta-badge badge-lead">🛡️ ${t.leadDays}天</span>` : '';
 
         html += `
-<div class="task-card ${cardClass}" id="card-${t.id}">
-  <div class="task-check ${isDone ? 'checked' : ''}" onclick="toggleDone('${t.id}', ${isDone}, '${t.status.replace(/'/g,"\\'")}')"></div>
+<div class="task-card ${cardClass}" id="card-${t.id}" data-id="${t.id}"
+  ontouchstart="startLongPress(event,'${t.id}')" ontouchend="cancelLongPress()" ontouchcancel="cancelLongPress()"
+  onmousedown="startLongPress(event,'${t.id}')" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()">
+  <div class="task-check ${isDone ? 'checked' : ''}" onclick="handleTaskCheck(event,'${t.id}',${isDone},'${t.status.replace(/'/g,"\\'")}')"></div>
   <div class="task-body">
     <div class="task-name">${t.name}</div>
     <div class="task-meta">
@@ -1561,6 +1676,22 @@ async function loadTasksByDate() {
       html = `<div class="empty-state"><div class="empty-icon">🎉</div><div class="empty-text">今天沒有排程任務！</div></div>`;
     }
     el.innerHTML = html;
+
+    // Store tasks for search/batch
+    _allLoadedTasks = [];
+    for (const [key, tasks] of Object.entries(groups)) {
+      for (const t of tasks) _allLoadedTasks.push(t);
+    }
+
+    // Update header progress bar (today only)
+    if (taskDateOffset === 0) {
+      const doneCount = _allLoadedTasks.filter(t=>t.status.includes('已完成')).length;
+      updateHeaderProgress(doneCount, total);
+      updateSmartHint(doneCount, total, _allLoadedTasks);
+    } else {
+      document.getElementById('headerProgress').style.display = 'none';
+      document.getElementById('smartHintBar').style.display = 'none';
+    }
 
   } catch(e) {
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗，請重新整理<br><small>${e.message}</small></div></div>`;
@@ -3327,7 +3458,297 @@ function resetToken() {
   showSetup();
 }
 
+// ═══════════════════════════════════════
+// DARK MODE
+// ═══════════════════════════════════════
+function toggleDarkMode() {
+  const isDark = document.body.classList.toggle('dark-mode');
+  localStorage.setItem('dark_mode', isDark ? '1' : '0');
+  document.getElementById('darkModeBtn').textContent = isDark ? '☀️' : '🌙';
+}
+function initDarkMode() {
+  const saved = localStorage.getItem('dark_mode');
+  // Auto dark: if no saved preference, use system
+  const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  const isDark = saved !== null ? saved === '1' : prefersDark;
+  if (isDark) document.body.classList.add('dark-mode');
+  document.getElementById('darkModeBtn').textContent = isDark ? '☀️' : '🌙';
+}
+
+// ═══════════════════════════════════════
+// HEADER PROGRESS BAR
+// ═══════════════════════════════════════
+function updateHeaderProgress(done, total) {
+  const bar = document.getElementById('headerProgress');
+  const fill = document.getElementById('headerProgressFill');
+  const text = document.getElementById('headerProgressText');
+  if (!bar) return;
+  if (total === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const pct = Math.round(done / total * 100);
+  fill.style.width = pct + '%';
+  fill.style.background = pct === 100 ? 'var(--green-light)' : pct >= 60 ? 'var(--wine-light)' : 'var(--orange-light)';
+  text.textContent = `${done}/${total} 件`;
+}
+
+// ═══════════════════════════════════════
+// SMART HINT
+// ═══════════════════════════════════════
+function updateSmartHint(done, total, tasks) {
+  const bar = document.getElementById('smartHintBar');
+  const content = document.getElementById('smartHintContent');
+  const icon = document.getElementById('smartHintIcon');
+  const text = document.getElementById('smartHintText');
+  if (!bar || total === 0) { if(bar) bar.style.display = 'none'; return; }
+
+  const overdue = tasks.filter(t => {
+    const due = t.due;
+    return due && due < today() && !t.status.includes('已完成') && !t.status.includes('已放棄');
+  }).length;
+  const urgent = tasks.filter(t => t.priority?.includes('1級') && !t.status.includes('已完成')).length;
+  const h = new Date().getHours();
+  const pct = total > 0 ? done / total : 0;
+
+  let cls, iconChar, msg;
+
+  if (done === total) {
+    cls = 'positive'; iconChar = '🎉'; msg = '所有任務完成！今天超棒的，去好好放鬆吧 ✨';
+  } else if (overdue > 0) {
+    cls = 'warning'; iconChar = '⚠️'; msg = `有 ${overdue} 件任務已逾期，建議優先處理或重新排程`;
+  } else if (urgent > 0 && h >= 14) {
+    cls = 'urgent'; iconChar = '🔴'; msg = `下午了，還有 ${urgent} 件高優先任務待處理，衝！`;
+  } else if (pct === 0 && h >= 10) {
+    cls = 'neutral'; iconChar = '💪'; msg = `今天有 ${total} 件任務，找個番茄鐘開始第一件吧`;
+  } else if (pct >= 0.5 && pct < 1) {
+    cls = 'positive'; iconChar = '🌊'; msg = `已完成 ${done}/${total} 件，保持節奏，快到了！`;
+  } else if (h < 9) {
+    cls = 'neutral'; iconChar = '🌅'; msg = `早安！今天有 ${total} 件任務，先來個晨間規劃吧`;
+  } else {
+    cls = 'neutral'; iconChar = '🛡️'; msg = `今天有 ${total} 件任務，${done} 件完成，繼續加油！`;
+  }
+
+  content.className = `smart-hint ${cls}`;
+  icon.textContent = iconChar;
+  text.textContent = msg;
+  bar.style.display = 'block';
+}
+
+// ═══════════════════════════════════════
+// TASK SEARCH
+// ═══════════════════════════════════════
+let _allLoadedTasks = [];
+let _searchAllTasks = []; // for global search across all tasks
+let _isSearchMode = false;
+let _searchDebounce = null;
+
+function onTaskSearchFocus() {
+  // Load all tasks for search if not in search mode
+  const inp = document.getElementById('taskSearchInput');
+  if (inp.value.trim()) return;
+}
+
+async function onTaskSearch(q) {
+  const clearBtn = document.getElementById('taskSearchClear');
+  clearBtn.style.display = q ? 'block' : 'none';
+
+  if (_searchDebounce) clearTimeout(_searchDebounce);
+  if (!q.trim()) {
+    _isSearchMode = false;
+    document.getElementById('taskSectionTitle').textContent = 
+      taskDateOffset === 0 ? '今日作戰計畫' : `${new Date().toLocaleDateString('zh-TW', {month:'numeric',day:'numeric'})} 作戰計畫`;
+    loadTasksByDate();
+    return;
+  }
+
+  _isSearchMode = true;
+  document.getElementById('taskSectionTitle').textContent = '🔍 搜尋結果';
+  _searchDebounce = setTimeout(() => doSearch(q.trim()), 400);
+}
+
+async function doSearch(q) {
+  const el = document.getElementById('taskList');
+  el.innerHTML = '<div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>';
+  try {
+    const data = await notionQuery(DB.TASK, {
+      property: 'Archive 封存', checkbox: { equals: false }
+    });
+    const qLow = q.toLowerCase();
+    const matched = (data.results || []).filter(pg => {
+      const name = getProp(pg.properties, 'Tasks Name', 'title') || '';
+      const tags = getProp(pg.properties, 'Tags 任務隸屬', 'multi_select') || [];
+      return name.toLowerCase().includes(qLow) || tags.some(t => t.toLowerCase().includes(qLow));
+    });
+
+    if (!matched.length) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">找不到「${q}」</div></div>`;
+      return;
+    }
+
+    // Render badge
+    let html = `<div class="search-results-badge">找到 ${matched.length} 筆結果</div>`;
+    for (const pg of matched) {
+      const p = pg.properties;
+      const name = getProp(p, 'Tasks Name', 'title') || '未命名';
+      const status = getProp(p, 'Status 任務階段', 'status') || '🧋未開始';
+      const due = fmtDate(p['Due 排程執行日']?.date?.start) || '';
+      const priority = getProp(p, 'Priority 任務優先値', 'select') || getProp(p, 'Priority 任務優先值', 'select') || '';
+      const tags = getProp(p, 'Tags 任務隸屬', 'multi_select') || [];
+      const isDone = status.includes('已完成');
+      const isDoing = status.includes('進行中');
+      const cardClass = isDone ? 'done' : isDoing ? 'doing' : '';
+      const statusShort = status.replace(/[🍶🥛☕🍷🧋🍵]/g,'').trim();
+      const tagsHtml = tags.map(t=>`<span class="meta-badge badge-tag">${t}</span>`).join('');
+      // Highlight query in name
+      const hi = name.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<mark style="background:rgba(26,95,168,0.2);border-radius:2px;padding:0 1px;">$1</mark>');
+      html += `
+<div class="task-card ${cardClass}" id="card-${pg.id}" data-id="${pg.id}"
+  ontouchstart="startLongPress(event,'${pg.id}')" ontouchend="cancelLongPress()" ontouchcancel="cancelLongPress()"
+  onmousedown="startLongPress(event,'${pg.id}')" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()">
+  <div class="task-check ${isDone?'checked':''}" onclick="handleTaskCheck(event,'${pg.id}',${isDone},'${status.replace(/'/g,"\\'")}')"></div>
+  <div class="task-body">
+    <div class="task-name">${hi}</div>
+    <div class="task-meta">
+      <span class="meta-badge badge-status">${statusShort}</span>
+      ${tagsHtml}
+      ${due?`<span class="meta-badge badge-date">📅 ${due}</span>`:''}
+    </div>
+  </div>
+  <button class="task-action-btn" onclick="openTaskModal('${pg.id}','${name.replace(/'/g,"\\'")}','${status.replace(/'/g,"\\'")}')">⋯</button>
+</div>`;
+    }
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">搜尋失敗</div></div>`;
+  }
+}
+
+function clearTaskSearch() {
+  const inp = document.getElementById('taskSearchInput');
+  inp.value = '';
+  document.getElementById('taskSearchClear').style.display = 'none';
+  _isSearchMode = false;
+  document.getElementById('taskSectionTitle').textContent = taskDateOffset === 0 ? '今日作戰計畫' : `作戰計畫`;
+  loadTasksByDate();
+  inp.focus();
+}
+
+// ═══════════════════════════════════════
+// BATCH SELECT
+// ═══════════════════════════════════════
+let _batchMode = false;
+let _batchSelected = new Set();
+let _longPressTimer = null;
+
+function startLongPress(e, id) {
+  _longPressTimer = setTimeout(() => {
+    if (!_batchMode) enterBatchMode();
+    toggleBatchSelect(id);
+    // Haptic if supported
+    navigator.vibrate?.(50);
+  }, 550);
+}
+
+function cancelLongPress() {
+  if (_longPressTimer) { clearTimeout(_longPressTimer); _longPressTimer = null; }
+}
+
+function enterBatchMode() {
+  _batchMode = true;
+  _batchSelected.clear();
+  showToast('💡 長按選取已啟動，點任務多選');
+}
+
+function toggleBatchSelect(id) {
+  const card = document.getElementById('card-' + id);
+  if (!card) return;
+  if (_batchSelected.has(id)) {
+    _batchSelected.delete(id);
+    card.classList.remove('batch-selected');
+  } else {
+    _batchSelected.add(id);
+    card.classList.add('batch-selected');
+  }
+  updateBatchToolbar();
+}
+
+function handleTaskCheck(e, id, isDone, status) {
+  if (_batchMode) {
+    e.stopPropagation();
+    toggleBatchSelect(id);
+    return;
+  }
+  toggleDone(id, isDone, status);
+}
+
+function updateBatchToolbar() {
+  const toolbar = document.getElementById('batchToolbar');
+  const count = document.getElementById('batchCount');
+  if (_batchSelected.size > 0) {
+    toolbar.classList.add('visible');
+    count.textContent = _batchSelected.size;
+  } else {
+    toolbar.classList.remove('visible');
+    if (_batchMode && _batchSelected.size === 0) {
+      // Auto-exit batch mode if nothing selected
+      _batchMode = false;
+    }
+  }
+}
+
+function batchCancelSelect() {
+  _batchMode = false;
+  _batchSelected.clear();
+  document.querySelectorAll('.task-card.batch-selected').forEach(c => c.classList.remove('batch-selected'));
+  document.getElementById('batchToolbar').classList.remove('visible');
+  document.getElementById('batchDatePicker').style.display = 'none';
+}
+
+async function batchMoveToday() {
+  if (!_batchSelected.size) return;
+  const ids = [..._batchSelected];
+  batchCancelSelect();
+  showToast(`📅 移動 ${ids.length} 件任務到今天...`);
+  for (const id of ids) {
+    await notionUpdate(id, { 'Due 排程執行日': { date: { start: today() } } });
+  }
+  showToast(`✅ 已移動 ${ids.length} 件！`);
+  loadTasks();
+}
+
+function batchMoveDatePick() {
+  const dp = document.getElementById('batchDatePicker');
+  dp.style.display = dp.style.display === 'none' ? 'block' : 'none';
+  if (dp.style.display !== 'none') dp.showPicker?.();
+}
+
+async function batchMoveDate(dateVal) {
+  if (!_batchSelected.size || !dateVal) return;
+  const ids = [..._batchSelected];
+  document.getElementById('batchDatePicker').style.display = 'none';
+  batchCancelSelect();
+  showToast(`📆 移動 ${ids.length} 件任務...`);
+  for (const id of ids) {
+    await notionUpdate(id, { 'Due 排程執行日': { date: { start: dateVal } } });
+  }
+  showToast(`✅ 已移至 ${dateVal}！`);
+  loadTasks();
+}
+
+async function batchArchive() {
+  if (!_batchSelected.size) return;
+  if (!confirm(`確定要封存選取的 ${_batchSelected.size} 件任務？`)) return;
+  const ids = [..._batchSelected];
+  batchCancelSelect();
+  showToast(`📦 封存 ${ids.length} 件...`);
+  for (const id of ids) {
+    await notionArchivePage(id);
+  }
+  showToast(`✅ 已封存 ${ids.length} 件！`);
+  loadTasks();
+}
+
 function initApp() {
+  initDarkMode();
   document.getElementById('headerDate').textContent = todayFormatted();
   document.getElementById('f_date').value = today();
   document.getElementById('subTabs').style.display = 'flex';
