@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -1189,6 +1188,7 @@ body.dark-mode .cal-detail-panel { background: var(--surface); }
       </div>
       <div class="gcal-actions">
         <button class="gcal-mini-btn primary" onclick="connectGoogleCalendar()">連線 Google</button>
+        <button class="gcal-mini-btn" onclick="connectGoogleCalendarRedirect()">跳轉授權</button>
         <button class="gcal-mini-btn" onclick="syncGoogleCalendarMonth()">雙向同步本月</button>
         <button class="gcal-mini-btn" onclick="disconnectGoogleCalendar()">登出</button>
       </div>
@@ -1204,6 +1204,7 @@ body.dark-mode .cal-detail-panel { background: var(--surface); }
         <button class="btn-secondary" onclick="saveGoogleCalendarSettings()">儲存 Google 設定</button>
         <div class="gcal-note" id="gcalOriginNote"></div>
       </div>
+      <div class="gcal-note" id="gcalDebugNote"></div>
       <div class="gcal-log" id="gcalLog"></div>
     </div>
     <div id="calContent"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
@@ -1725,10 +1726,16 @@ function updateGCalUI() {
   const cal = document.getElementById('gcalCalendarId');
   const status = document.getElementById('gcalStatus');
   const note = document.getElementById('gcalOriginNote');
+  const debug = document.getElementById('gcalDebugNote');
   if (client) client.value = googleCalendarSettings.clientId;
   if (cal) cal.value = googleCalendarSettings.calendarId || 'primary';
   if (status) status.textContent = googleAccessToken ? `Google Calendar：已連線 (${googleCalendarSettings.calendarId || 'primary'})` : 'Google Calendar：尚未連線';
-  if (note) note.innerHTML = `Google Cloud OAuth 請加入 JavaScript origin：<b>${location.origin}</b><br>GitHub Pages 部署後，也要把正式網址的 origin 加進去。`;
+  if (note) note.innerHTML = `Google Cloud OAuth 請加入 JavaScript origin：<b>${location.origin}</b><br>若 popup 被阻擋，請另加入 Authorized redirect URI：<b>${getGCalRedirectUri()}</b>`;
+  if (debug) {
+    const gis = window.google?.accounts?.oauth2 ? '已載入' : '尚未載入';
+    const idOk = googleCalendarSettings.clientId.endsWith('.apps.googleusercontent.com') ? '格式看起來正確' : 'Client ID 應以 .apps.googleusercontent.com 結尾';
+    debug.textContent = `診斷：Google script ${gis}｜${idOk}`;
+  }
 }
 
 function toggleGCalSettings() {
@@ -1746,6 +1753,49 @@ function saveGoogleCalendarSettings() {
   googleAccessToken = '';
   updateGCalUI();
   showToast('✅ Google 設定已儲存');
+}
+
+function getGCalRedirectUri() {
+  return location.origin + location.pathname;
+}
+
+function readGoogleRedirectToken() {
+  const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const token = hash.get('access_token');
+  const err = hash.get('error');
+  if (err) {
+    showToast('⚠️ Google 授權失敗：' + err, 5000);
+    history.replaceState(null, '', location.pathname + location.search);
+    return;
+  }
+  if (!token) return;
+  googleAccessToken = token;
+  updateGCalUI();
+  history.replaceState(null, '', location.pathname + location.search);
+  showToast('✅ Google Calendar 已連線');
+}
+
+function connectGoogleCalendarRedirect() {
+  saveGoogleCalendarSettings();
+  if (!googleCalendarSettings.clientId) {
+    showToast('⚠️ 請先填入 OAuth Client ID', 4000);
+    return;
+  }
+  if (!googleCalendarSettings.clientId.endsWith('.apps.googleusercontent.com')) {
+    showToast('⚠️ Client ID 應以 .apps.googleusercontent.com 結尾', 5000);
+    return;
+  }
+  const redirectUri = getGCalRedirectUri();
+  const params = new URLSearchParams({
+    client_id: googleCalendarSettings.clientId,
+    redirect_uri: redirectUri,
+    response_type: 'token',
+    scope: 'https://www.googleapis.com/auth/calendar.events',
+    include_granted_scopes: 'true',
+    prompt: 'consent'
+  });
+  localStorage.setItem('gcal_pending_redirect', '1');
+  location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
 function gcalLog(msg) {
@@ -1770,6 +1820,10 @@ function ensureGoogleToken() {
       reject(new Error('請先在 Google 設定填入 OAuth Client ID'));
       return;
     }
+    if (!googleCalendarSettings.clientId.endsWith('.apps.googleusercontent.com')) {
+      reject(new Error('OAuth Client ID 格式不完整，應以 .apps.googleusercontent.com 結尾'));
+      return;
+    }
     if (!window.google?.accounts?.oauth2) {
       reject(new Error('Google Identity Services 尚未載入，請稍後再試'));
       return;
@@ -1778,6 +1832,7 @@ function ensureGoogleToken() {
       client_id: googleCalendarSettings.clientId,
       scope: 'https://www.googleapis.com/auth/calendar.events',
       callback: tokenResponse => {
+        gcalLog('收到 Google 授權回應');
         if (tokenResponse?.access_token) {
           googleAccessToken = tokenResponse.access_token;
           updateGCalUI();
@@ -1785,18 +1840,26 @@ function ensureGoogleToken() {
         } else {
           reject(new Error(tokenResponse?.error || 'Google 授權失敗'));
         }
+      },
+      error_callback: err => {
+        const msg = err?.message || err?.type || JSON.stringify(err);
+        gcalLog(`Google 授權視窗錯誤：${msg}`);
+        reject(new Error(msg || 'Google 授權視窗被阻擋'));
       }
     });
+    gcalLog('正在開啟 Google 授權視窗...');
     googleTokenClient.requestAccessToken({ prompt: 'consent' });
   });
 }
 
 async function connectGoogleCalendar() {
   try {
+    resetGCalLog();
     saveGoogleCalendarSettings();
     await ensureGoogleToken();
     showToast('✅ Google Calendar 已連線');
   } catch(e) {
+    gcalLog(`連線失敗：${friendlyErrorMessage(e)}`);
     showToast('⚠️ ' + friendlyErrorMessage(e), 4000);
   }
 }
@@ -4477,6 +4540,7 @@ function initApp() {
 // ═══════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════
+readGoogleRedirectToken();
 if (!TOKEN) {
   showSetup();
 } else {
