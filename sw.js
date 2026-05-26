@@ -1,21 +1,39 @@
-const CACHE = 'war-room-v1';
-const ASSETS = ['./index.html', './manifest.json'];
+const CACHE = 'war-room-v20260526-gcal-2';
+const ASSETS = ['./', './index.html', './manifest.json'];
 
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
   self.skipWaiting();
 });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-  ));
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))
+    )
+  );
   self.clients.claim();
 });
 
-self.addEventListener('fetch', e => {
-  if (e.request.url.includes('notion.com') || e.request.url.includes('corsproxy')) return;
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./index.html')))
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  if (
+    url.hostname.includes('notion.com') ||
+    url.hostname.includes('googleapis.com') ||
+    url.hostname.includes('google.com') ||
+    url.hostname.includes('corsproxy') ||
+    url.hostname.includes('thingproxy')
+  ) {
+    return;
+  }
+
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        const copy = response.clone();
+        caches.open(CACHE).then(cache => cache.put(event.request, copy));
+        return response;
+      })
+      .catch(() => caches.match(event.request).then(cached => cached || caches.match('./index.html')))
   );
 });
