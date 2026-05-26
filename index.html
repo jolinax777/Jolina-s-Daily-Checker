@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -190,6 +189,28 @@ body {
   box-shadow: 0 4px 12px var(--wine-glow);
 }
 .priority-filter-count { opacity: 0.68; font-size: 0.68rem; }
+.task-filter-row {
+  display: flex; gap: 6px; overflow-x: auto; padding: 0 0 8px;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.task-filter-row::-webkit-scrollbar { display: none; }
+.task-filter-select {
+  flex: 0 0 auto; min-width: 104px; max-width: 150px;
+  border: 1px solid var(--surface3); background: var(--surface);
+  color: var(--text2); border-radius: 999px; padding: 7px 10px;
+  font-size: 0.75rem; font-family: var(--font-body); outline: none;
+}
+.home-focus-strip {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px; margin: 0 0 10px;
+}
+.home-focus-card {
+  background: var(--surface); border: 1px solid var(--surface3);
+  border-radius: var(--radius-sm); padding: 9px 10px;
+  box-shadow: 0 1px 4px rgba(26,95,168,0.06);
+}
+.home-focus-num { font-size: 1.1rem; font-weight: 700; color: var(--wine); line-height: 1; }
+.home-focus-label { font-size: 0.68rem; color: var(--text3); margin-top: 4px; white-space: nowrap; }
 
 .task-action-btn {
   background: transparent; border: none; color: var(--text3);
@@ -702,6 +723,25 @@ body {
 /* ── FORM REQUIRED VALIDATION ── */
 .form-input.invalid, .form-select.invalid { border-color: #ef5350 !important; }
 .tag-btn-required { box-shadow: 0 0 0 2px #ef5350; }
+.template-chip-row { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 12px; scrollbar-width: none; }
+.template-chip-row::-webkit-scrollbar { display:none; }
+.template-chip {
+  flex: 0 0 auto; border: 1px solid var(--surface3); background: var(--surface);
+  color: var(--text2); border-radius: 999px; padding: 7px 11px;
+  font-size: 0.76rem; cursor: pointer; font-family: var(--font-body);
+}
+.template-chip:active { background: var(--wine); color: white; border-color: var(--wine-light); }
+.pomo-task-select {
+  width: 100%; margin-bottom: 8px; background: var(--surface2);
+  border: 1px solid var(--surface3); border-radius: var(--radius-sm);
+  color: var(--text); padding: 9px 10px; font-size: 0.84rem;
+  font-family: var(--font-body); outline: none;
+}
+.pomo-focus-card {
+  background: var(--surface2); border: 1px solid var(--surface3);
+  border-radius: var(--radius-sm); padding: 8px 10px; margin-top: 8px;
+  font-size: 0.76rem; color: var(--text2);
+}
 
 /* ── DARK MODE ── */
 body.dark-mode {
@@ -894,7 +934,24 @@ body.dark-mode .cal-detail-panel { background: var(--surface); }
         <input class="search-bar-input" id="taskSearchInput" placeholder="搜尋所有任務..." oninput="onTaskSearch(this.value)" onfocus="onTaskSearchFocus()">
         <button class="search-bar-clear" id="taskSearchClear" onclick="clearTaskSearch()">✕</button>
       </div>
+      <div class="home-focus-strip" id="homeFocusStrip" style="display:none;"></div>
       <div class="priority-filter-bar" id="priorityFilterBar"></div>
+      <div class="task-filter-row" id="taskFilterRow">
+        <select class="task-filter-select" id="statusFilter" onchange="setTaskFilter('status',this.value)">
+          <option value="all">全部狀態</option>
+          <option value="todo">待處理</option>
+          <option value="doing">進行中</option>
+          <option value="done">已完成</option>
+        </select>
+        <select class="task-filter-select" id="typeFilter" onchange="setTaskFilter('type',this.value)">
+          <option value="all">全部類型</option>
+          <option value="S1">S1 緊急</option>
+          <option value="S2">S2 期限</option>
+          <option value="S3">S3 行政</option>
+          <option value="S4">S4 專案</option>
+          <option value="Other">其他</option>
+        </select>
+      </div>
       <!-- Batch toolbar (appears on long press / multi-select) -->
       <div class="batch-toolbar" id="batchToolbar">
         <span class="batch-count" id="batchCount">0</span> 件已選
@@ -945,6 +1002,13 @@ body.dark-mode .cal-detail-panel { background: var(--surface); }
   <!-- PAGE: ADD TASK -->
   <div class="page" id="page-add">
     <div class="section-title" style="margin-top:8px;">新增任務</div>
+    <div class="template-chip-row">
+      <button class="template-chip" onclick="applyQuickTemplate('focus')">🍅 專注任務</button>
+      <button class="template-chip" onclick="applyQuickTemplate('deadline')">⏳ 期限任務</button>
+      <button class="template-chip" onclick="applyQuickTemplate('admin')">🧾 行政雜務</button>
+      <button class="template-chip" onclick="applyQuickTemplate('project')">🗂️ 專案推進</button>
+      <button class="template-chip" onclick="applyQuickTemplate('self')">🌿 自我照顧</button>
+    </div>
 
     <!-- REQUIRED fields first -->
     <div style="font-size:0.7rem;color:var(--text3);margin-bottom:10px;letter-spacing:0.04em;">
@@ -1133,7 +1197,11 @@ body.dark-mode .cal-detail-panel { background: var(--surface); }
         <div style="background:var(--surface);border:1px solid var(--surface3);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;text-align:left;">
           <div style="font-size:0.72rem;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">🎯 當前任務</div>
           <div id="pomoTaskName" style="font-size:0.9rem;color:var(--text);font-weight:500;margin-bottom:8px;">（尚未選擇任務）</div>
+          <select class="pomo-task-select" id="pomoTaskSelect" onchange="pomoSelectTask(this.value)">
+            <option value="">載入今日任務...</option>
+          </select>
           <input class="form-input" id="pomoCustomTask" placeholder="或輸入自訂任務名稱..." style="font-size:0.85rem;padding:8px 12px;" oninput="pomoSetCustomTask(this.value)">
+          <div class="pomo-focus-card" id="pomoTaskSummary">選一個今日任務，完成番茄後會寫進今日紀錄。</div>
         </div>
         <!-- Stats -->
         <div class="dash-grid" style="margin-bottom:12px;">
@@ -1458,15 +1526,77 @@ function getTimeFromDateStart(d) {
   return m ? `${m[1]}:${m[2]}` : '';
 }
 
+function friendlyErrorMessage(e) {
+  const msg = (e?.message || String(e || '')).toLowerCase();
+  if (msg.includes('unauthorized') || msg.includes('401')) return 'Notion Token 可能失效，請到右上角齒輪重新設定。';
+  if (msg.includes('forbidden') || msg.includes('403')) return 'Notion 資料庫尚未分享給 Integration，請檢查資料庫權限。';
+  if (msg.includes('failed to fetch') || msg.includes('all proxies') || msg.includes('bad response')) return '連線暫時不穩，請稍後重整，或切換網路再試。';
+  if (msg.includes('not found') || msg.includes('404')) return '找不到指定資料庫或頁面，請確認 Notion Database ID。';
+  return e?.message || '發生未知錯誤';
+}
+
 function getPriorityLevel(priority) {
   const m = (priority || '').match(/([1-4])級/);
   return m ? m[1] : 'none';
 }
 
 let taskPriorityFilter = localStorage.getItem('task_priority_filter') || 'all';
+let taskStatusFilter = localStorage.getItem('task_status_filter') || 'all';
+let taskTypeFilter = localStorage.getItem('task_type_filter') || 'all';
 
 function matchesPriorityFilter(task) {
   return taskPriorityFilter === 'all' || getPriorityLevel(task.priority) === taskPriorityFilter;
+}
+
+function taskStatusClassFromStatus(status) {
+  if ((status || '').includes('進行') || (status || '').includes('追蹤')) return 'doing';
+  if ((status || '').includes('完成')) return 'done';
+  if ((status || '').includes('放棄') || (status || '').includes('取消')) return 'cancelled';
+  return 'todo';
+}
+
+function matchesTaskFilters(task) {
+  if (!matchesPriorityFilter(task)) return false;
+  if (taskStatusFilter !== 'all' && taskStatusClassFromStatus(task.status) !== taskStatusFilter) return false;
+  if (taskTypeFilter !== 'all' && task.group !== taskTypeFilter) return false;
+  return true;
+}
+
+function syncFilterControls() {
+  const status = document.getElementById('statusFilter');
+  const type = document.getElementById('typeFilter');
+  if (status) status.value = taskStatusFilter;
+  if (type) type.value = taskTypeFilter;
+}
+
+function setTaskFilter(kind, value) {
+  if (kind === 'status') {
+    taskStatusFilter = value;
+    localStorage.setItem('task_status_filter', value);
+  }
+  if (kind === 'type') {
+    taskTypeFilter = value;
+    localStorage.setItem('task_type_filter', value);
+  }
+  const q = document.getElementById('taskSearchInput')?.value?.trim();
+  if (_isSearchMode && q) doSearch(q);
+  else loadTasksByDate();
+}
+
+function renderHomeFocus(tasks = []) {
+  const el = document.getElementById('homeFocusStrip');
+  if (!el) return;
+  if (taskDateOffset !== 0 || _isSearchMode) { el.style.display = 'none'; return; }
+  const openTasks = tasks.filter(t => !taskStatusClassFromStatus(t.status).match(/done|cancelled/));
+  const doing = tasks.filter(t => taskStatusClassFromStatus(t.status) === 'doing').length;
+  const urgent = openTasks.filter(t => ['1','2'].includes(getPriorityLevel(t.priority))).length;
+  const timed = openTasks.filter(t => t.timeStr).length;
+  el.innerHTML = `
+    <div class="home-focus-card"><div class="home-focus-num">${openTasks.length}</div><div class="home-focus-label">未完成</div></div>
+    <div class="home-focus-card"><div class="home-focus-num">${urgent}</div><div class="home-focus-label">高優先</div></div>
+    <div class="home-focus-card"><div class="home-focus-num">${doing || timed}</div><div class="home-focus-label">${doing ? '進行中' : '有時間'}</div></div>
+  `;
+  el.style.display = 'grid';
 }
 
 function renderPriorityFilters(tasks = []) {
@@ -1712,8 +1842,10 @@ async function loadTasksByDate() {
       allTasks.push({ id: page.id, name, status, priority, tags, alert, group, taskDue, leadDays, autoDue, projDue, dateStr: fmtDate(dueStart), timeStr });
     }
 
+    syncFilterControls();
+    renderHomeFocus(allTasks);
     renderPriorityFilters(allTasks);
-    allTasks.filter(matchesPriorityFilter).forEach(t => groups[t.group].push(t));
+    allTasks.filter(matchesTaskFilters).forEach(t => groups[t.group].push(t));
 
     const groupLabels = {
       S1: ['group-s1', '🟧 S1 緊急'],
@@ -1812,7 +1944,7 @@ async function loadTasksByDate() {
     }
 
   } catch(e) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗，請重新整理<br><small>${e.message}</small></div></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗，請重新整理<br><small>${friendlyErrorMessage(e)}</small></div></div>`;
   }
 }
 
@@ -2541,6 +2673,50 @@ function toggleTag(btn) {
   }
 }
 
+function setTagSelected(tag, selected = true) {
+  const btn = document.querySelector(`#tagSelector button[data-tag="${tag}"]`);
+  if (!btn) return;
+  const isSelected = btn.classList.contains('selected');
+  if (selected !== isSelected) toggleTag(btn);
+}
+
+function applyQuickTemplate(kind) {
+  const templates = {
+    focus: {
+      category: '專注', type: '🟪S4－Creative 專案任務', priority: '🟠2級－Not Urgent but Important',
+      time: '1~2小時', tag: 'WORK', body: ''
+    },
+    deadline: {
+      category: '期限', type: '🟨S2－Deadline 期限任務', priority: '🔴1級－Urgent ＆ Important！',
+      time: '≦1小時', tag: 'WORK', body: ''
+    },
+    admin: {
+      category: '行政', type: '🟩S3－Admin 行政任務', priority: '🟡3級－Urgent but not Important',
+      time: '≦1小時', tag: 'ME', body: ''
+    },
+    project: {
+      category: '專案', type: '🟪S4－Creative 專案任務', priority: '🟠2級－Not Urgent but Important',
+      time: '2~3小時', tag: 'WORK', body: ''
+    },
+    self: {
+      category: '照顧', type: '🟩S3－Admin 行政任務', priority: '🟢4級－Not Urgent ＆ not Important',
+      time: '≦1小時', tag: 'ME', body: ''
+    }
+  };
+  const t = templates[kind];
+  if (!t) return;
+  document.getElementById('f_category').value = t.category;
+  document.getElementById('f_type').value = t.type;
+  document.getElementById('f_priority').value = t.priority;
+  document.getElementById('f_time').value = t.time;
+  document.querySelectorAll('#tagSelector button.selected').forEach(btn => toggleTag(btn));
+  setTagSelected(t.tag, true);
+  const body = document.getElementById('f_body');
+  if (t.body && !body.value.trim()) body.value = t.body;
+  body.focus();
+  showToast('已套用快速模板');
+}
+
 function toggleHabit(key, el) {
   habitData[key] = !habitData[key];
   const checked = habitData[key];
@@ -2903,6 +3079,7 @@ async function syncAll() {
   } else if (currentPage === 'shop') await loadShopping();
   else if (currentPage === 'cal') await loadCalendar();
   else if (currentPage === 'dash') await loadDashboard();
+  else if (currentPage === 'pomo') await loadPomoTaskOptions();
   setTimeout(() => btn.classList.remove('spinning'), 500);
   showToast('🔄 已更新！');
 }
@@ -2963,7 +3140,7 @@ function refreshWeather() { showToast('🌤 更新中...'); loadWeather(); }
 // ═══════════════════════════════════════
 // DASHBOARD — drill-down modal
 // ═══════════════════════════════════════
-let _dashAllTasks=[], _dashOverdueTasks=[], _dashDoingTasks=[], _dashTodoTasks=[], _dashDoneTasks=[], _dashCancelledTasks=[], _dashUrgentTasks=[], _dashProjRows=[];
+let _dashAllTasks=[], _dashOverdueTasks=[], _dashDoingTasks=[], _dashTodoTasks=[], _dashDoneTasks=[], _dashCancelledTasks=[], _dashUrgentTasks=[], _dashProjRows=[], _dashProjectTaskMap={};
 
 function closeDashDrill() { document.getElementById('dashDrillModal').style.display='none'; }
 
@@ -2977,7 +3154,9 @@ function openDashDrillProj(cls) {
 function openDashDrillProjIdx(idx) {
   const pg = _dashProjRows[idx];
   if (!pg) return;
-  openDashDrill(`🗂️ ${pg.name}`, [{name:pg.name,status:pg.status,cls:pg.cls,due:null}]);
+  const tasks = _dashProjectTaskMap[pg.id] || [];
+  if (tasks.length) openDashDrill(`🗂️ ${pg.name} (${tasks.length}件)`, tasks);
+  else openDashDrill(`🗂️ ${pg.name}`, [{name:pg.name,status:pg.status,cls:pg.cls,due:null}]);
 }
 
 function openDashDrill(title, taskList) {
@@ -3034,7 +3213,7 @@ async function loadDashboard() {
     // ── Task counters ──
     let total=0, doing=0, todo=0, done=0, cancelled=0, overdue=0;
     const tagCount={}, typeCount={};
-    _dashAllTasks=[]; _dashOverdueTasks=[]; _dashDoingTasks=[]; _dashTodoTasks=[]; _dashDoneTasks=[]; _dashCancelledTasks=[]; _dashUrgentTasks=[];
+    _dashAllTasks=[]; _dashOverdueTasks=[]; _dashDoingTasks=[]; _dashTodoTasks=[]; _dashDoneTasks=[]; _dashCancelledTasks=[]; _dashUrgentTasks=[]; _dashProjectTaskMap={};
 
     // Weekly/Monthly done tracking
     const now7 = new Date(); now7.setDate(now7.getDate()-6);
@@ -3051,6 +3230,7 @@ async function loadDashboard() {
       const name   = getProp(p,'Tasks Name','title')||'未命名';
       const cls    = calStatusClass(status);
       const obj    = {name,status,cls,due};
+      const projRels = p['Project 關聯專案']?.relation || [];
 
       total++;
       if (cls==='doing')     { doing++;    _dashDoingTasks.push(obj); }
@@ -3063,6 +3243,10 @@ async function loadDashboard() {
       for (const tag of tags) tagCount[tag]=(tagCount[tag]||0)+1;
       if (type) typeCount[type]=(typeCount[type]||0)+1;
       if ((prior.includes('1級')||prior.includes('2級')) && cls!=='done'&&cls!=='cancelled') _dashUrgentTasks.push(obj);
+      for (const rel of projRels) {
+        if (!_dashProjectTaskMap[rel.id]) _dashProjectTaskMap[rel.id] = [];
+        _dashProjectTaskMap[rel.id].push(obj);
+      }
 
       // Weekly/monthly counters (by due date)
       if (due && due >= weekStartStr && due <= t0) {
@@ -3240,9 +3424,11 @@ async function loadDashboard() {
       const dot=pg.cls==='doing'?'var(--blue-light)':pg.cls==='done'?'var(--green-light)':pg.cls==='cancelled'?'#ef5350':'var(--text3)';
       const sLabel=(pg.status||'').replace(/[🧋🍶🥛☕🍷🍵●◆🌟🌅📒💧👟💊✈️🗞]/g,'').trim().slice(0,5);
       const short=pg.name.length>26?pg.name.slice(0,26)+'…':pg.name;
+      const taskCnt=(_dashProjectTaskMap[pg.id]||[]).length;
       return `<div class="dash-status-item" style="cursor:pointer;padding:3px 0;" onclick="openDashDrillProjIdx(${idx})">
         <div class="dash-status-dot" style="background:${dot}"></div>
         <div class="dash-status-name" style="font-size:0.8rem">${short}</div>
+        ${taskCnt?`<span style="font-size:0.62rem;color:var(--text3);white-space:nowrap">${taskCnt}件</span>`:''}
         <span style="font-size:0.62rem;padding:1px 5px;border-radius:6px;background:${dot}22;color:${dot};white-space:nowrap">${sLabel}</span>
         <span style="font-size:0.7rem;color:var(--text3);margin-left:4px;">›</span>
       </div>`;
@@ -3323,7 +3509,7 @@ async function loadDashboard() {
 
     el.innerHTML = html;
   } catch(e) {
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗</div></div>`;
+    el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗<br><small>${friendlyErrorMessage(e)}</small></div></div>`;
     console.error(e);
   }
 }
@@ -3341,16 +3527,81 @@ let pomoTotalSeconds = 25 * 60;
 let pomoSessionsDone = 0;
 let pomoTodayPomos = 0;
 let pomoTodayMinutes = 0;
-let pomoCurrentTask = '';
+let pomoCurrentTask = localStorage.getItem('pomo_current_task') || '';
+let pomoTaskOptions = [];
 let pomoHistory = JSON.parse(localStorage.getItem('pomo_history_'+today()) || '[]');
 
 function initPomoPage() {
   pomoTodayPomos = pomoHistory.filter(h=>h.type==='work').length;
   pomoTodayMinutes = pomoHistory.filter(h=>h.type==='work').reduce((s,h)=>s+h.mins,0);
+  if (pomoCurrentTask) {
+    const nameEl = document.getElementById('pomoTaskName');
+    if (nameEl) nameEl.textContent = pomoCurrentTask;
+  }
+  loadPomoTaskOptions();
   updatePomoDisplay();
   renderPomoSessions();
   renderPomoHistory();
   renderPomoStats();
+}
+
+async function loadPomoTaskOptions() {
+  const sel = document.getElementById('pomoTaskSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">載入今日任務...</option>';
+  try {
+    const data = await notionQuery(DB.TASK, {
+      and: [
+        { property: 'Due 排程執行日', date: { equals: today() } },
+        { property: 'Archive 封存', checkbox: { equals: false } }
+      ]
+    });
+    pomoTaskOptions = (data.results || []).map(pg => {
+      const p = pg.properties;
+      return {
+        id: pg.id,
+        name: getProp(p, 'Tasks Name', 'title') || '未命名',
+        status: getProp(p, 'Status 任務階段', 'status') || '',
+        priority: getProp(p, 'Priority 任務優先值', 'select') || ''
+      };
+    }).filter(t => taskStatusClassFromStatus(t.status) !== 'done' && taskStatusClassFromStatus(t.status) !== 'cancelled');
+    if (!pomoTaskOptions.length) {
+      sel.innerHTML = '<option value="">今天沒有可綁定任務</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">選擇今日任務</option>' + pomoTaskOptions.map(t => {
+      const pr = getPriorityLevel(t.priority);
+      const label = `${pr !== 'none' ? pr + '級｜' : ''}${t.name}`;
+      return `<option value="${t.id}">${label}</option>`;
+    }).join('');
+    const current = pomoTaskOptions.find(t => t.name === pomoCurrentTask);
+    if (current) sel.value = current.id;
+    renderPomoTaskSummary();
+  } catch(e) {
+    sel.innerHTML = '<option value="">任務載入失敗，可手動輸入</option>';
+  }
+}
+
+function pomoSelectTask(id) {
+  const task = pomoTaskOptions.find(t => t.id === id);
+  if (!task) return;
+  pomoCurrentTask = task.name;
+  localStorage.setItem('pomo_current_task', pomoCurrentTask);
+  document.getElementById('pomoCustomTask').value = '';
+  document.getElementById('pomoTaskName').textContent = task.name;
+  renderPomoTaskSummary(task);
+}
+
+function renderPomoTaskSummary(task = null) {
+  const el = document.getElementById('pomoTaskSummary');
+  if (!el) return;
+  const t = task || pomoTaskOptions.find(x => x.name === pomoCurrentTask);
+  if (!t) {
+    el.textContent = '選一個今日任務，完成番茄後會寫進今日紀錄。';
+    return;
+  }
+  const status = (t.status || '').replace(/[🍶🥛☕🍷🧋🍵]/g,'').trim() || '未開始';
+  el.textContent = `已綁定：${status} · ${t.priority || '未設定優先級'}`;
 }
 
 function setPomoMode(mode, btn) {
@@ -3477,7 +3728,11 @@ function pomoComplete() {
 
 function pomoSetCustomTask(val) {
   pomoCurrentTask = val;
+  localStorage.setItem('pomo_current_task', val);
+  const sel = document.getElementById('pomoTaskSelect');
+  if (sel && val) sel.value = '';
   document.getElementById('pomoTaskName').textContent = val || '（尚未選擇任務）';
+  renderPomoTaskSummary();
 }
 
 function renderPomoSessions() {
@@ -3698,15 +3953,21 @@ async function doSearch(q) {
         page: pg,
         name: getProp(p, 'Tasks Name', 'title') || '',
         priority: getProp(p, 'Priority 任務優先値', 'select') || getProp(p, 'Priority 任務優先值', 'select') || '',
+        status: getProp(p, 'Status 任務階段', 'status') || getProp(p, 'Status 任務階段', 'select') || '',
+        group: (getProp(p, 'Type 任務類型', 'select') || '').includes('S1') ? 'S1'
+          : (getProp(p, 'Type 任務類型', 'select') || '').includes('S2') ? 'S2'
+          : (getProp(p, 'Type 任務類型', 'select') || '').includes('S3') ? 'S3'
+          : (getProp(p, 'Type 任務類型', 'select') || '').includes('S4') ? 'S4' : 'Other',
         tags: getProp(p, 'Tags 任務隸屬', 'multi_select') || [],
         due: fmtDate(dueStart) || '',
         timeStr: getTimeFromDateStart(dueStart)
       };
     });
+    syncFilterControls();
     renderPriorityFilters(allSearchTasks);
     const matched = allSearchTasks.filter(task => {
       const { name, tags } = task;
-      if (!matchesPriorityFilter(task)) return false;
+      if (!matchesTaskFilters(task)) return false;
       return name.toLowerCase().includes(qLow) || tags.some(t => t.toLowerCase().includes(qLow));
     });
 
@@ -3761,7 +4022,7 @@ async function doSearch(q) {
     }
     el.innerHTML = html;
   } catch(e) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">搜尋失敗</div></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">搜尋失敗<br><small>${friendlyErrorMessage(e)}</small></div></div>`;
   }
 }
 
