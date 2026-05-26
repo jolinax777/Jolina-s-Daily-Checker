@@ -17,6 +17,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root {
   --bg: #f0f4f8;
@@ -474,6 +475,33 @@ body {
   font-family: var(--font-body);
 }
 .cal-view-tab.active { background: var(--wine); border-color: var(--wine-light); color: white; }
+.gcal-panel {
+  background: var(--surface); border: 1px solid var(--surface3);
+  border-radius: var(--radius); padding: 12px; margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(26,95,168,0.06);
+}
+.gcal-status {
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  font-size:0.78rem; color:var(--text2); margin-bottom:8px;
+}
+.gcal-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.gcal-mini-btn {
+  border:1px solid var(--surface3); background:var(--surface2); color:var(--text2);
+  border-radius:999px; padding:7px 11px; font-size:0.75rem;
+  font-family:var(--font-body); cursor:pointer;
+}
+.gcal-mini-btn.primary { background:var(--wine); border-color:var(--wine-light); color:white; }
+.gcal-settings {
+  display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--surface3);
+}
+.gcal-settings.open { display:block; }
+.gcal-note { font-size:0.7rem; color:var(--text3); line-height:1.55; margin-top:6px; }
+.gcal-log {
+  display:none; margin-top:8px; max-height:90px; overflow:auto;
+  background:var(--surface2); border:1px solid var(--surface3); border-radius:var(--radius-sm);
+  padding:8px; font-size:0.72rem; color:var(--text2); line-height:1.5;
+}
+.gcal-log.open { display:block; }
 
 /* ── CALENDAR MONTH GRID ── */
 .cal-month-grid {
@@ -1153,6 +1181,30 @@ body.dark-mode .cal-detail-panel { background: var(--surface); }
       <button class="cal-view-tab active" id="calTabList" onclick="switchCalView('list',this)">📋 列表</button>
       <button class="cal-view-tab" id="calTabGrid" onclick="switchCalView('grid',this)">📅 月曆</button>
     </div>
+    <div class="gcal-panel">
+      <div class="gcal-status">
+        <span id="gcalStatus">Google Calendar：尚未連線</span>
+        <button class="gcal-mini-btn" onclick="toggleGCalSettings()">設定</button>
+      </div>
+      <div class="gcal-actions">
+        <button class="gcal-mini-btn primary" onclick="connectGoogleCalendar()">連線 Google</button>
+        <button class="gcal-mini-btn" onclick="syncGoogleCalendarMonth()">雙向同步本月</button>
+        <button class="gcal-mini-btn" onclick="disconnectGoogleCalendar()">登出</button>
+      </div>
+      <div class="gcal-settings" id="gcalSettings">
+        <div class="form-group">
+          <label class="form-label">Google OAuth Client ID</label>
+          <input class="form-input" id="gcalClientId" placeholder="xxxxx.apps.googleusercontent.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Calendar ID</label>
+          <input class="form-input" id="gcalCalendarId" placeholder="primary">
+        </div>
+        <button class="btn-secondary" onclick="saveGoogleCalendarSettings()">儲存 Google 設定</button>
+        <div class="gcal-note" id="gcalOriginNote"></div>
+      </div>
+      <div class="gcal-log" id="gcalLog"></div>
+    </div>
     <div id="calContent"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
   </div>
   <!-- PAGE: DASHBOARD -->
@@ -1425,6 +1477,12 @@ let habitData = {};
 let habitPageId = null;
 let journalPageId = null;
 let journalData = {};
+let googleAccessToken = '';
+let googleTokenClient = null;
+let googleCalendarSettings = {
+  clientId: localStorage.getItem('gcal_client_id') || '',
+  calendarId: localStorage.getItem('gcal_calendar_id') || 'primary'
+};
 
 // ═══════════════════════════════════════
 // UTILS
@@ -1659,6 +1717,252 @@ function openGoogleCalendarForTask(e, name, dateStr, timeStr = '') {
   e.stopPropagation();
   if (!dateStr) { showToast('⚠️ 這個任務沒有排程日期'); return; }
   window.open(buildGoogleCalendarUrl(name, dateStr, timeStr), '_blank', 'noopener');
+}
+
+function updateGCalUI() {
+  const client = document.getElementById('gcalClientId');
+  const cal = document.getElementById('gcalCalendarId');
+  const status = document.getElementById('gcalStatus');
+  const note = document.getElementById('gcalOriginNote');
+  if (client) client.value = googleCalendarSettings.clientId;
+  if (cal) cal.value = googleCalendarSettings.calendarId || 'primary';
+  if (status) status.textContent = googleAccessToken ? `Google Calendar：已連線 (${googleCalendarSettings.calendarId || 'primary'})` : 'Google Calendar：尚未連線';
+  if (note) note.innerHTML = `Google Cloud OAuth 請加入 JavaScript origin：<b>${location.origin}</b><br>GitHub Pages 部署後，也要把正式網址的 origin 加進去。`;
+}
+
+function toggleGCalSettings() {
+  document.getElementById('gcalSettings')?.classList.toggle('open');
+  updateGCalUI();
+}
+
+function saveGoogleCalendarSettings() {
+  const clientId = document.getElementById('gcalClientId')?.value.trim() || '';
+  const calendarId = document.getElementById('gcalCalendarId')?.value.trim() || 'primary';
+  googleCalendarSettings = { clientId, calendarId };
+  localStorage.setItem('gcal_client_id', clientId);
+  localStorage.setItem('gcal_calendar_id', calendarId);
+  googleTokenClient = null;
+  googleAccessToken = '';
+  updateGCalUI();
+  showToast('✅ Google 設定已儲存');
+}
+
+function gcalLog(msg) {
+  const el = document.getElementById('gcalLog');
+  if (!el) return;
+  el.classList.add('open');
+  el.innerHTML += `<div>${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+function resetGCalLog() {
+  const el = document.getElementById('gcalLog');
+  if (!el) return;
+  el.innerHTML = '';
+  el.classList.remove('open');
+}
+
+function ensureGoogleToken() {
+  return new Promise((resolve, reject) => {
+    if (googleAccessToken) { resolve(googleAccessToken); return; }
+    if (!googleCalendarSettings.clientId) {
+      reject(new Error('請先在 Google 設定填入 OAuth Client ID'));
+      return;
+    }
+    if (!window.google?.accounts?.oauth2) {
+      reject(new Error('Google Identity Services 尚未載入，請稍後再試'));
+      return;
+    }
+    googleTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: googleCalendarSettings.clientId,
+      scope: 'https://www.googleapis.com/auth/calendar.events',
+      callback: tokenResponse => {
+        if (tokenResponse?.access_token) {
+          googleAccessToken = tokenResponse.access_token;
+          updateGCalUI();
+          resolve(googleAccessToken);
+        } else {
+          reject(new Error(tokenResponse?.error || 'Google 授權失敗'));
+        }
+      }
+    });
+    googleTokenClient.requestAccessToken({ prompt: 'consent' });
+  });
+}
+
+async function connectGoogleCalendar() {
+  try {
+    saveGoogleCalendarSettings();
+    await ensureGoogleToken();
+    showToast('✅ Google Calendar 已連線');
+  } catch(e) {
+    showToast('⚠️ ' + friendlyErrorMessage(e), 4000);
+  }
+}
+
+function disconnectGoogleCalendar() {
+  if (googleAccessToken && window.google?.accounts?.oauth2) {
+    google.accounts.oauth2.revoke(googleAccessToken, () => {});
+  }
+  googleAccessToken = '';
+  googleTokenClient = null;
+  updateGCalUI();
+  showToast('已登出 Google Calendar');
+}
+
+async function gcalFetch(path, options = {}) {
+  const token = await ensureGoogleToken();
+  const calendarId = encodeURIComponent(googleCalendarSettings.calendarId || 'primary');
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}${path}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    }
+  });
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : {};
+  if (!res.ok) throw new Error(data.error?.message || `Google Calendar API ${res.status}`);
+  return data;
+}
+
+function notionTaskToEvent(task) {
+  const date = fmtDate(task.due);
+  const time = getTimeFromDateStart(task.due);
+  const base = {
+    summary: task.name,
+    description: `Synced from Jolina War Room\nNotion page: ${task.id}`,
+    extendedProperties: {
+      private: {
+        notionPageId: task.id,
+        warRoomManaged: 'true'
+      }
+    }
+  };
+  if (time) {
+    base.start = { dateTime: `${date}T${time}:00+08:00`, timeZone: 'Asia/Taipei' };
+    const end = new Date(`${date}T${time}:00+08:00`);
+    end.setHours(end.getHours() + 1);
+    base.end = { dateTime: end.toISOString(), timeZone: 'Asia/Taipei' };
+  } else {
+    const end = new Date(`${date}T00:00:00+08:00`);
+    end.setDate(end.getDate() + 1);
+    base.start = { date };
+    base.end = { date: end.toISOString().split('T')[0] };
+  }
+  return base;
+}
+
+function eventToNotionDue(event) {
+  if (event.start?.dateTime) return event.start.dateTime;
+  return event.start?.date || null;
+}
+
+function eventToTaskName(event) {
+  return event.summary || '未命名 Google 事件';
+}
+
+async function updateNotionTaskFromEvent(pageId, event) {
+  const due = eventToNotionDue(event);
+  const props = {
+    'Tasks Name': { title: [{ text: { content: eventToTaskName(event) } }] }
+  };
+  if (due) props['Due 排程執行日'] = { date: { start: due } };
+  await notionUpdate(pageId, props);
+}
+
+async function createNotionTaskFromEvent(event) {
+  const due = eventToNotionDue(event);
+  const props = {
+    'Tasks Name': { title: [{ text: { content: `🌼［行事曆］${eventToTaskName(event)}` } }] },
+    'Type 任務類型': { select: { name: '🟨S2－Deadline 期限任務' } },
+    'Priority 任務優先值': { select: { name: '🟡3級－Urgent but not Important' } },
+    'Tags 任務隸屬': { multi_select: [{ name: 'ME' }] },
+    'Time Needes 預估時間': { select: { name: '≦1小時' } },
+    'Status 任務階段': { status: { name: '🧋未開始' } }
+  };
+  if (due) props['Due 排程執行日'] = { date: { start: due } };
+  return notionCreate(DB.TASK, props);
+}
+
+async function syncGoogleCalendarMonth() {
+  resetGCalLog();
+  saveGoogleCalendarSettings();
+  const now = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth() + calOffset, 1);
+  const start = new Date(target.getFullYear(), target.getMonth(), 1);
+  const end = new Date(target.getFullYear(), target.getMonth() + 1, 1);
+  const startStr = start.toISOString().split('T')[0];
+  const endStr = new Date(end.getTime() - 86400000).toISOString().split('T')[0];
+  showToast('🔄 Google 雙向同步中...', 2500);
+  try {
+    await ensureGoogleToken();
+    gcalLog(`同步範圍：${startStr} ~ ${endStr}`);
+    const [notionData, googleData] = await Promise.all([
+      notionQuery(DB.TASK, {
+        and: [
+          { property: 'Due 排程執行日', date: { on_or_after: startStr } },
+          { property: 'Due 排程執行日', date: { on_or_before: endStr } },
+          { property: 'Archive 封存', checkbox: { equals: false } }
+        ]
+      }),
+      gcalFetch(`/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}&singleEvents=true&showDeleted=false&orderBy=startTime`)
+    ]);
+    const notionTasks = (notionData.results || []).map(page => {
+      const p = page.properties;
+      return {
+        id: page.id,
+        name: getProp(p, 'Tasks Name', 'title') || '未命名',
+        due: getProp(p, 'Due 排程執行日', 'date'),
+        lastEdited: page.last_edited_time
+      };
+    }).filter(t => t.due);
+    const googleEvents = googleData.items || [];
+    const eventsByNotionId = {};
+    for (const ev of googleEvents) {
+      const nid = ev.extendedProperties?.private?.notionPageId;
+      if (nid) eventsByNotionId[nid] = ev;
+    }
+    let createdG = 0, updatedG = 0, updatedN = 0, importedN = 0;
+    for (const task of notionTasks) {
+      const ev = eventsByNotionId[task.id];
+      if (!ev) {
+        await gcalFetch('/events', { method: 'POST', body: JSON.stringify(notionTaskToEvent(task)) });
+        createdG++;
+        continue;
+      }
+      const gUpdated = new Date(ev.updated || 0).getTime();
+      const nUpdated = new Date(task.lastEdited || 0).getTime();
+      if (gUpdated > nUpdated + 30000) {
+        await updateNotionTaskFromEvent(task.id, ev);
+        updatedN++;
+      } else {
+        await gcalFetch(`/events/${encodeURIComponent(ev.id)}`, { method: 'PATCH', body: JSON.stringify(notionTaskToEvent(task)) });
+        updatedG++;
+      }
+    }
+    for (const ev of googleEvents) {
+      if (ev.extendedProperties?.private?.notionPageId) continue;
+      if (ev.status === 'cancelled' || !ev.start || !ev.summary) continue;
+      const created = await createNotionTaskFromEvent(ev);
+      if (created?.id) {
+        const privateProps = { ...(ev.extendedProperties?.private || {}), notionPageId: created.id, warRoomManaged: 'true' };
+        await gcalFetch(`/events/${encodeURIComponent(ev.id)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ extendedProperties: { private: privateProps } })
+        });
+        importedN++;
+      }
+    }
+    gcalLog(`完成：Google 新增 ${createdG}、Google 更新 ${updatedG}、Notion 更新 ${updatedN}、Google 匯入 Notion ${importedN}`);
+    showToast('✅ Google Calendar 同步完成', 3000);
+    loadCalendar();
+  } catch(e) {
+    gcalLog(`失敗：${friendlyErrorMessage(e)}`);
+    showToast('⚠️ ' + friendlyErrorMessage(e), 5000);
+  }
 }
 
 function showToast(msg, dur=2000) {
@@ -2798,6 +3102,7 @@ function calSortOrder(cls) {
 async function loadCalendar() {
   const el = document.getElementById('calContent');
   el.innerHTML = '<div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>';
+  updateGCalUI();
 
   const now = new Date();
   const target = new Date(now.getFullYear(), now.getMonth() + calOffset, 1);
@@ -4153,6 +4458,7 @@ async function batchArchive() {
 
 function initApp() {
   initDarkMode();
+  updateGCalUI();
   document.getElementById('headerDate').textContent = todayFormatted();
   document.getElementById('f_date').value = today();
   document.getElementById('subTabs').style.display = 'flex';
