@@ -674,10 +674,21 @@ body {
   .action-btn { min-width: 60px; font-size: 0.72rem; }
   .action-btn .btn-icon { font-size: 1.1rem; }
 }
+/* Add task form: stack all fields vertically on mobile */
+#page-add .form-row {
+  flex-direction: column;
+}
+#page-add .form-row .form-group {
+  flex: unset;
+  width: 100%;
+}
 @media (min-width: 600px) {
   body { max-width: 520px; margin: 0 auto; }
   .bottom-nav { max-width: 520px; left: 50%; transform: translateX(-50%); }
   .page { padding-left: 20px; padding-right: 20px; }
+  /* Restore 2-col on desktop for add form */
+  #page-add .form-row { flex-direction: row; }
+  #page-add .form-row .form-group { flex: 1; width: auto; }
 }
 
 /* ── FORM REQUIRED VALIDATION ── */
@@ -2703,9 +2714,22 @@ function refreshWeather() { showToast('🌤 更新中...'); loadWeather(); }
 // ═══════════════════════════════════════
 // DASHBOARD — drill-down modal
 // ═══════════════════════════════════════
-let _dashAllTasks=[], _dashOverdueTasks=[], _dashDoingTasks=[], _dashTodoTasks=[], _dashDoneTasks=[], _dashCancelledTasks=[], _dashUrgentTasks=[];
+let _dashAllTasks=[], _dashOverdueTasks=[], _dashDoingTasks=[], _dashTodoTasks=[], _dashDoneTasks=[], _dashCancelledTasks=[], _dashUrgentTasks=[], _dashProjRows=[];
 
 function closeDashDrill() { document.getElementById('dashDrillModal').style.display='none'; }
+
+function openDashDrillProj(cls) {
+  const filtered = _dashProjRows.filter(p=>p.cls===cls);
+  const labels = {doing:'🔵 進行中專案', todo:'⬜ 待啟動專案', done:'✅ 已完成專案', cancelled:'❌ 已取消專案'};
+  const title = `${labels[cls]||'專案'} (${filtered.length}個)`;
+  openDashDrill(title, filtered.map(p=>({name:p.name,status:p.status,cls:p.cls,due:null})));
+}
+
+function openDashDrillProjIdx(idx) {
+  const pg = _dashProjRows[idx];
+  if (!pg) return;
+  openDashDrill(`🗂️ ${pg.name}`, [{name:pg.name,status:pg.status,cls:pg.cls,due:null}]);
+}
 
 function openDashDrill(title, taskList) {
   if (!taskList || !taskList.length) { showToast('此分類目前沒有任務'); return; }
@@ -2820,6 +2844,7 @@ async function loadDashboard() {
     }).sort((a,b)=>({doing:0,todo:1,done:2,cancelled:3}[a.cls]||1)-({doing:0,todo:1,done:2,cancelled:3}[b.cls]||1));
     const doingProj=projRows.filter(p=>p.cls==='doing');
     const todoProj =projRows.filter(p=>p.cls==='todo');
+    _dashProjRows = projRows; // store globally for onclick access
 
     // ── Habits 7-day ──
     const hDays = habits.length || 7;
@@ -2945,15 +2970,16 @@ async function loadDashboard() {
   </div>
 </div>`;
 
+
     if (projRows.length) html += `
 <div class="dash-section-title">🗂️ 專案狀況</div>
 <div class="dash-grid" style="margin-bottom:10px;">
-  <div class="dash-card" style="cursor:pointer" onclick="openDashDrill('🔵 進行中專案 (${doingProj.length}個)',${JSON.stringify(doingProj.map(p=>({name:p.name,status:p.status,cls:p.cls,due:null})))})">
+  <div class="dash-card" style="cursor:pointer" onclick="openDashDrillProj('doing')">
     <div class="dash-num" style="font-size:1.5rem;color:var(--blue-light)">${doingProj.length}</div>
     <div class="dash-label">進行中</div>
     <div class="dash-sub" style="font-size:0.7rem;color:var(--wine-light)">點按查看 ›</div>
   </div>
-  <div class="dash-card" style="cursor:pointer" onclick="openDashDrill('⬜ 待啟動專案 (${todoProj.length}個)',${JSON.stringify(todoProj.map(p=>({name:p.name,status:p.status,cls:p.cls,due:null})))})">
+  <div class="dash-card" style="cursor:pointer" onclick="openDashDrillProj('todo')">
     <div class="dash-num" style="font-size:1.5rem;color:var(--text3)">${todoProj.length}</div>
     <div class="dash-label">待啟動</div>
     <div class="dash-sub" style="font-size:0.7rem;color:var(--wine-light)">點按查看 ›</div>
@@ -2961,12 +2987,11 @@ async function loadDashboard() {
 </div>
 <div class="dash-card" style="margin-bottom:12px;">
   <div class="dash-status-row">
-    ${projRows.slice(0,10).map(pg=>{
+    ${projRows.slice(0,10).map((pg,idx)=>{
       const dot=pg.cls==='doing'?'var(--blue-light)':pg.cls==='done'?'var(--green-light)':pg.cls==='cancelled'?'#ef5350':'var(--text3)';
       const sLabel=(pg.status||'').replace(/[🧋🍶🥛☕🍷🍵●◆🌟🌅📒💧👟💊✈️🗞]/g,'').trim().slice(0,5);
       const short=pg.name.length>26?pg.name.slice(0,26)+'…':pg.name;
-      const projTaskList = [{name:pg.name, status:pg.status, cls:pg.cls, due:null}];
-      return `<div class="dash-status-item" style="cursor:pointer;padding:3px 0;" onclick="openDashDrill('🗂️ ${short.replace(/'/g,"\\'")}',${JSON.stringify(projTaskList)})">
+      return `<div class="dash-status-item" style="cursor:pointer;padding:3px 0;" onclick="openDashDrillProjIdx(${idx})">
         <div class="dash-status-dot" style="background:${dot}"></div>
         <div class="dash-status-name" style="font-size:0.8rem">${short}</div>
         <span style="font-size:0.62rem;padding:1px 5px;border-radius:6px;background:${dot}22;color:${dot};white-space:nowrap">${sLabel}</span>
@@ -2976,7 +3001,6 @@ async function loadDashboard() {
     ${projRows.length>10?`<div style="font-size:0.72rem;color:var(--text3);padding-top:4px;">共 ${projRows.length} 個專案</div>`:''}
   </div>
 </div>`;
-
     if (habits.length>0) html += `
 <div class="dash-section-title">🧘 習慣打卡（近 ${hDays} 天）</div>
 <div class="dash-card" style="margin-bottom:12px;">
