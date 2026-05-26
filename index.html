@@ -625,6 +625,64 @@ body {
   border-color: var(--wine-light);
   color: white;
 }
+
+/* ── POMODORO ── */
+.pomo-mode-btn {
+  flex: 1; padding: 8px 6px; border-radius: 20px;
+  border: 1.5px solid var(--surface3); background: var(--surface);
+  color: var(--text2); font-size: 0.8rem; font-weight: 500;
+  cursor: pointer; font-family: var(--font-body); transition: all 0.2s;
+}
+.pomo-mode-btn.active { background: var(--wine); border-color: var(--wine-light); color: white; }
+.pomo-session-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--surface3); transition: background 0.3s; }
+.pomo-session-dot.done { background: var(--wine); }
+.pomo-session-dot.current { background: var(--wine-light); box-shadow: 0 0 6px var(--wine-glow); }
+.pomo-history-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; background: var(--surface);
+  border: 1px solid var(--surface3); border-radius: var(--radius-sm);
+  margin-bottom: 5px; font-size: 0.82rem;
+}
+
+/* ── WEATHER WEEK ── */
+.weather-week-card {
+  background: var(--surface); border: 1px solid var(--surface3);
+  border-radius: var(--radius); padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.weather-week-row { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.weather-week-row::-webkit-scrollbar { display: none; }
+.weather-day-card {
+  flex-shrink: 0; min-width: 56px; text-align: center;
+  background: var(--surface2); border: 1px solid var(--surface3);
+  border-radius: var(--radius-sm); padding: 8px 4px;
+}
+.weather-day-card.today-wx { border-color: var(--wine-light); background: rgba(26,95,168,0.07); }
+.weather-day-name { font-size: 0.65rem; color: var(--text3); font-weight: 600; letter-spacing: 0.05em; }
+.weather-day-icon { font-size: 1.4rem; margin: 4px 0; }
+.weather-day-max { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+.weather-day-min { font-size: 0.7rem; color: var(--text3); }
+
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 380px) {
+  .nav-tab { padding: 6px 10px; font-size: 0.76rem; }
+  .task-card { padding: 10px 12px; }
+  .dash-grid { gap: 6px; }
+  .dash-num { font-size: 1.6rem; }
+  .bottom-nav-item { font-size: 0.58rem; }
+  .bottom-nav-item .nav-icon { font-size: 1.1rem; }
+  .action-btn { min-width: 60px; font-size: 0.72rem; }
+  .action-btn .btn-icon { font-size: 1.1rem; }
+}
+@media (min-width: 600px) {
+  body { max-width: 520px; margin: 0 auto; }
+  .bottom-nav { max-width: 520px; left: 50%; transform: translateX(-50%); }
+  .page { padding-left: 20px; padding-right: 20px; }
+}
+
+/* ── FORM REQUIRED VALIDATION ── */
+.form-input.invalid, .form-select.invalid { border-color: #ef5350 !important; }
+.tag-btn-required { box-shadow: 0 0 0 2px #ef5350; }
 </style>
 </head>
 <body>
@@ -679,6 +737,15 @@ body {
 
     <!-- Sub: Tasks -->
     <div id="sub-tasks">
+      <div class="weather-week-card" id="weatherWeekCard" style="margin-top:8px;">
+        <div style="font-size:0.7rem;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+          <span>🌤 未來一週天氣</span>
+          <span style="cursor:pointer;color:var(--wine-light);" onclick="refreshWeather()">↻ 更新</span>
+        </div>
+        <div class="weather-week-row" id="weatherWeek">
+          <div style="color:var(--text3);font-size:0.8rem;padding:8px 0;">載入中...</div>
+        </div>
+      </div>
       <div class="date-nav-bar" id="taskDateNav">
         <button class="date-nav-btn" onclick="shiftTaskDate(-1)">◀</button>
         <span class="date-nav-label" id="taskDateLabel" onclick="toggleTaskDatePicker()"></span>
@@ -879,10 +946,79 @@ body {
     <div class="section-title" style="margin-top:8px;">📊 儀表板</div>
     <div id="dashContent"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
   </div>
-  <!-- PAGE: DASHBOARD -->
-  <div class="page" id="page-dash">
-    <div class="section-title" style="margin-top:8px;">📊 儀表板</div>
-    <div id="dashContent"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
+
+  <!-- PAGE: POMODORO -->
+  <div class="page" id="page-pomo">
+    <div class="section-title" style="margin-top:8px;">🍅 番茄鐘</div>
+    <div id="pomoContent">
+      <!-- Pomodoro Timer -->
+      <div style="text-align:center;padding:20px 16px 0;">
+        <!-- Mode selector -->
+        <div style="display:flex;gap:6px;margin-bottom:20px;">
+          <button class="pomo-mode-btn active" id="pomoModeWork" onclick="setPomoMode('work',this)">🍅 專注</button>
+          <button class="pomo-mode-btn" id="pomoModeShort" onclick="setPomoMode('short',this)">☕ 短休</button>
+          <button class="pomo-mode-btn" id="pomoModeLong" onclick="setPomoMode('long',this)">🌿 長休</button>
+        </div>
+        <!-- Big timer circle -->
+        <div style="position:relative;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;">
+          <svg width="220" height="220" style="transform:rotate(-90deg)">
+            <circle cx="110" cy="110" r="96" fill="none" stroke="var(--surface3)" stroke-width="10"/>
+            <circle id="pomoRing" cx="110" cy="110" r="96" fill="none" stroke="var(--wine-light)" stroke-width="10"
+              stroke-dasharray="603" stroke-dashoffset="0" stroke-linecap="round" style="transition:stroke-dashoffset 1s linear,stroke 0.3s;"/>
+          </svg>
+          <div style="position:absolute;text-align:center;">
+            <div id="pomoTime" style="font-family:var(--font-display);font-size:3.2rem;font-weight:700;color:var(--text);line-height:1;">25:00</div>
+            <div id="pomoLabel" style="font-size:0.75rem;color:var(--text3);margin-top:4px;letter-spacing:0.06em;text-transform:uppercase;">專注時間</div>
+          </div>
+        </div>
+        <!-- Controls -->
+        <div style="display:flex;gap:12px;justify-content:center;margin-bottom:20px;">
+          <button onclick="pomoReset()" style="width:48px;height:48px;border-radius:50%;background:var(--surface2);border:1px solid var(--surface3);font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);">↺</button>
+          <button id="pomoStartBtn" onclick="pomoToggle()" style="width:72px;height:72px;border-radius:50%;background:var(--wine);border:none;font-size:1.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;color:white;box-shadow:0 4px 16px var(--wine-glow);">▶</button>
+          <button onclick="pomoSkip()" style="width:48px;height:48px;border-radius:50%;background:var(--surface2);border:1px solid var(--surface3);font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);">⏭</button>
+        </div>
+        <!-- Session counter -->
+        <div style="display:flex;gap:6px;justify-content:center;margin-bottom:20px;" id="pomoSessions"></div>
+        <!-- Current task -->
+        <div style="background:var(--surface);border:1px solid var(--surface3);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;text-align:left;">
+          <div style="font-size:0.72rem;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">🎯 當前任務</div>
+          <div id="pomoTaskName" style="font-size:0.9rem;color:var(--text);font-weight:500;margin-bottom:8px;">（尚未選擇任務）</div>
+          <input class="form-input" id="pomoCustomTask" placeholder="或輸入自訂任務名稱..." style="font-size:0.85rem;padding:8px 12px;" oninput="pomoSetCustomTask(this.value)">
+        </div>
+        <!-- Stats -->
+        <div class="dash-grid" style="margin-bottom:12px;">
+          <div class="dash-card" style="text-align:left;">
+            <div class="dash-num" id="pomoTodayCount" style="font-size:1.6rem;">0</div>
+            <div class="dash-label">今日番茄</div>
+          </div>
+          <div class="dash-card" style="text-align:left;">
+            <div class="dash-num" id="pomoTotalMin" style="font-size:1.6rem;">0</div>
+            <div class="dash-label">今日專注(分)</div>
+          </div>
+        </div>
+        <!-- Settings -->
+        <div style="background:var(--surface);border:1px solid var(--surface3);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;text-align:left;">
+          <div style="font-size:0.72rem;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;">⚙️ 時間設定（分鐘）</div>
+          <div class="form-row" style="margin-bottom:0;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">🍅 專注</label>
+              <input class="form-input" id="pomoWorkMin" type="number" value="25" min="1" max="90" style="text-align:center;" onchange="pomoUpdateSettings()">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">☕ 短休</label>
+              <input class="form-input" id="pomoShortMin" type="number" value="5" min="1" max="30" style="text-align:center;" onchange="pomoUpdateSettings()">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">🌿 長休</label>
+              <input class="form-input" id="pomoLongMin" type="number" value="15" min="5" max="60" style="text-align:center;" onchange="pomoUpdateSettings()">
+            </div>
+          </div>
+        </div>
+        <!-- History -->
+        <div class="section-title" style="font-size:0.85rem;">📅 今日紀錄</div>
+        <div id="pomoHistory"></div>
+      </div>
+    </div>
   </div>
 
 </main>
@@ -949,6 +1085,10 @@ body {
   <button class="bottom-nav-item" onclick="switchPage('dash',this)" id="nav-dash">
     <span class="nav-icon">📊</span>
     <span>儀表板</span>
+  </button>
+  <button class="bottom-nav-item" onclick="switchPage('pomo',this)" id="nav-pomo">
+    <span class="nav-icon">🍅</span>
+    <span>番茄鐘</span>
   </button>
 </nav>
 
@@ -1193,7 +1333,7 @@ function switchPage(page, btn) {
   if (page === 'cal') loadCalendar();
   if (page === 'add') loadAddForm();
   if (page === 'dash') loadDashboard();
-  if (page === 'dash') loadDashboard();
+  if (page === 'pomo') initPomoPage();
 }
 
 function switchSubTab(tab, btn) {
@@ -1468,11 +1608,20 @@ async function updateTaskFromModal() {
   loadTasks();
 }
 
+async function notionArchivePage(pageId) {
+  // This archives the Notion page itself (removes from DB), different from the checkbox property
+  return notionFetch(`https://api.notion.com/v1/pages/${pageId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ archived: true })
+  });
+}
+
 async function deleteTaskFromModal() {
-  if (!confirm('確定要刪除這個任務嗎？')) return;
+  if (!confirm('確定要刪除這個任務嗎？此操作會將任務從 Notion 封存（無法恢復）')) return;
   closeModal('taskModal');
-  await notionUpdate(modalTaskId, { 'Archive 封存': { checkbox: true } });
-  showToast('🗑️ 已刪除');
+  showToast('🗑️ 刪除中...');
+  await notionArchivePage(modalTaskId);
+  showToast('🗑️ 已刪除！');
   loadTasks();
 }
 
@@ -1764,7 +1913,24 @@ async function loadAddForm() {
 
 async function submitAddTask() {
   const body = document.getElementById('f_body').value.trim();
-  if (!body) { showToast('⚠️ 請填寫任務內容'); return; }
+  const tags  = [...document.querySelectorAll('#tagSelector button.selected')].map(b => b.dataset.tag);
+
+  // Validation
+  let valid = true;
+  document.getElementById('f_body').classList.toggle('invalid', !body);
+  if (!body) { valid = false; }
+
+  if (tags.length === 0) {
+    document.getElementById('tagSelector').querySelectorAll('button').forEach(b => b.classList.add('tag-btn-required'));
+    setTimeout(() => document.getElementById('tagSelector').querySelectorAll('button').forEach(b => b.classList.remove('tag-btn-required')), 2000);
+    valid = false;
+  }
+
+  if (!valid) {
+    showToast('⚠️ 請填寫必填欄位（任務內容 + 標籤）');
+    return;
+  }
+  document.getElementById('f_body').classList.remove('invalid');
 
   const category = document.getElementById('f_category').value.trim() || '任務';
   const name = `🌼［${category}］${body}`;
@@ -1774,7 +1940,7 @@ async function submitAddTask() {
   const time      = document.getElementById('f_time').value;
   const deadline  = document.getElementById('f_deadline').value;
   const leadDays  = parseInt(document.getElementById('f_lead').value || '0') || 0;
-  const tags      = [...document.querySelectorAll('#tagSelector button.selected')].map(b => b.dataset.tag);
+  // tags already defined above in validation
   const projectId = comboState.project.selected?.id || '';
   const parentId  = comboState.parent.selected?.id  || '';
   const subId     = comboState.sub.selected?.id     || '';
@@ -2100,6 +2266,21 @@ function toggleChip(btn) {
   btn.classList.toggle('selected');
 }
 
+function toggleTag(btn) {
+  btn.classList.toggle('selected');
+  if (btn.classList.contains('selected')) {
+    btn.style.background = 'var(--blue-light)';
+    btn.style.color = 'white';
+    btn.style.fontWeight = '600';
+    btn.style.border = '1px solid var(--blue-light)';
+  } else {
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.style.fontWeight = '';
+    btn.style.border = '';
+  }
+}
+
 function toggleHabit(key, el) {
   habitData[key] = !habitData[key];
   const checked = habitData[key];
@@ -2356,9 +2537,10 @@ async function saveTaskEdit() {
 }
 async function deleteTaskEdit() {
   if (!taskEditId) return;
-  if (!confirm('確定刪除？')) return;
-  await notionUpdate(taskEditId, { 'Archive 封存': { checkbox: true } });
-  showToast('🗑️ 已刪除');
+  if (!confirm('確定刪除？此操作會將任務從 Notion 封存')) return;
+  showToast('🗑️ 刪除中...');
+  await notionArchivePage(taskEditId);
+  showToast('🗑️ 已刪除！');
   closeTaskEdit();
   loadCalendar();
 }
@@ -2469,6 +2651,9 @@ async function syncAll() {
 // WEATHER (Open-Meteo, no API key needed)
 // ═══════════════════════════════════════
 const WX_CODE_ICON = {0:'☀️',1:'🌤',2:'⛅',3:'🌥',45:'🌫',48:'🌫',51:'🌦',53:'🌦',55:'🌧',61:'🌧',63:'🌧',65:'🌧',71:'🌨',73:'🌨',75:'🌨',80:'🌦',81:'🌦',82:'🌩',95:'⛈',96:'⛈',99:'⛈'};
+const WX_CODE_DESC = {0:'晴天',1:'晴時多雲',2:'多雲',3:'陰天',45:'霧',51:'毛毛雨',55:'陣雨',61:'小雨',63:'中雨',65:'大雨',80:'陣雨',82:'強陣雨',95:'雷雨',99:'冰雹'};
+const DAYS_SHORT = ['日','一','二','三','四','五','六'];
+
 async function loadWeather() {
   try {
     let lat = 22.6273, lon = 120.3014; // Kaohsiung default
@@ -2476,7 +2661,7 @@ async function loadWeather() {
       const pos = await new Promise((res,rej)=>navigator.geolocation?.getCurrentPosition(res,rej,{timeout:3500})||rej());
       lat = pos.coords.latitude; lon = pos.coords.longitude;
     } catch(e) {}
-    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,apparent_temperature&timezone=Asia%2FTaipei`);
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,apparent_temperature&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTaipei&forecast_days=7`);
     const d = await r.json();
     const temp  = Math.round(d.current.temperature_2m);
     const feels = Math.round(d.current.apparent_temperature);
@@ -2484,6 +2669,29 @@ async function loadWeather() {
     document.getElementById('weatherIcon').textContent = icon;
     document.getElementById('weatherTemp').textContent = temp+'°C';
     document.getElementById('weatherDesc').textContent = '體感'+feels+'°';
+
+    // Render 7-day forecast if container exists
+    const weekEl = document.getElementById('weatherWeek');
+    if (weekEl && d.daily) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const days = d.daily.time || [];
+      let html = '';
+      days.forEach((dateStr, i) => {
+        const date = new Date(dateStr);
+        const dow = DAYS_SHORT[date.getDay()];
+        const wxIcon = WX_CODE_ICON[d.daily.weathercode[i]] || '🌡';
+        const maxT = Math.round(d.daily.temperature_2m_max[i]);
+        const minT = Math.round(d.daily.temperature_2m_min[i]);
+        const isToday = dateStr === todayStr;
+        html += `<div class="weather-day-card${isToday?' today-wx':''}">
+          <div class="weather-day-name">${isToday ? '今天' : '週'+dow}</div>
+          <div class="weather-day-icon">${wxIcon}</div>
+          <div class="weather-day-max">${maxT}°</div>
+          <div class="weather-day-min">${minT}°</div>
+        </div>`;
+      });
+      weekEl.innerHTML = html;
+    }
   } catch(e) {
     document.getElementById('weatherIcon').textContent = '🌡';
     document.getElementById('weatherTemp').textContent = '—';
@@ -2530,12 +2738,18 @@ async function loadDashboard() {
     const t0 = today();
     const sevenDaysAgo = (() => { const d=new Date(); d.setDate(d.getDate()-6); return d.toISOString().split('T')[0]; })();
 
-    // Parallel: tasks + projects + habits
-    const [taskData, projData, habitData] = await Promise.all([
+    // Parallel: tasks + projects + habits (7-day) + habit (30-day for monthly)
+    const monthStart = (() => { const d=new Date(); d.setDate(1); return d.toISOString().split('T')[0]; })();
+    const weekStart  = sevenDaysAgo;
+    const [taskData, projData, habitData, habitMonthData] = await Promise.all([
       notionQuery(DB.TASK, { property:'Archive 封存', checkbox:{equals:false} }),
       notionQuery(DB.PROJECT, { property:'Archives', checkbox:{equals:false} }).catch(()=>({results:[]})),
       notionQuery(DB.HABIT, { and:[
         {property:'日期', date:{on_or_after: sevenDaysAgo}},
+        {property:'日期', date:{on_or_before: t0}}
+      ]}).catch(()=>({results:[]})),
+      notionQuery(DB.HABIT, { and:[
+        {property:'日期', date:{on_or_after: monthStart}},
         {property:'日期', date:{on_or_before: t0}}
       ]}).catch(()=>({results:[]}))
     ]);
@@ -2548,6 +2762,11 @@ async function loadDashboard() {
     let total=0, doing=0, todo=0, done=0, cancelled=0, overdue=0;
     const tagCount={}, typeCount={};
     _dashAllTasks=[]; _dashOverdueTasks=[]; _dashDoingTasks=[]; _dashTodoTasks=[]; _dashDoneTasks=[]; _dashCancelledTasks=[]; _dashUrgentTasks=[];
+
+    // Weekly/Monthly done tracking
+    const now7 = new Date(); now7.setDate(now7.getDate()-6);
+    const weekStartStr = now7.toISOString().split('T')[0];
+    let weekDone=0, monthDone=0, weekTotal=0, monthTotal=0;
 
     for (const pg of tasks) {
       const p = pg.properties;
@@ -2571,9 +2790,21 @@ async function loadDashboard() {
       for (const tag of tags) tagCount[tag]=(tagCount[tag]||0)+1;
       if (type) typeCount[type]=(typeCount[type]||0)+1;
       if ((prior.includes('1級')||prior.includes('2級')) && cls!=='done'&&cls!=='cancelled') _dashUrgentTasks.push(obj);
+
+      // Weekly/monthly counters (by due date)
+      if (due && due >= weekStartStr && due <= t0) {
+        weekTotal++;
+        if (cls==='done') weekDone++;
+      }
+      if (due && due >= monthStart && due <= t0) {
+        monthTotal++;
+        if (cls==='done') monthDone++;
+      }
     }
 
     const rate = total>0 ? Math.round(done/total*100) : 0;
+    const weekRate  = weekTotal>0  ? Math.round(weekDone/weekTotal*100)   : 0;
+    const monthRate = monthTotal>0 ? Math.round(monthDone/monthTotal*100) : 0;
     const SC = {doing:'var(--blue-light)',todo:'var(--text3)',done:'var(--green-light)',cancelled:'#ef5350'};
     const topTags  = Object.entries(tagCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
     const typeList = Object.entries(typeCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
@@ -2583,8 +2814,9 @@ async function loadDashboard() {
       const pp=pg.properties;
       const name=pp['Name']?.title?.[0]?.plain_text||pp['專案名稱']?.title?.[0]?.plain_text||'未命名';
       const status=pp['Status']?.status?.name||pp['狀態']?.status?.name||'';
+      const id = pg.id;
       const cls=status.includes('進行')||status.includes('追蹤')?'doing':status.includes('完成')?'done':status.includes('放棄')||status.includes('取消')||status.includes('擱置')?'cancelled':'todo';
-      return {name,status,cls};
+      return {id,name,status,cls};
     }).sort((a,b)=>({doing:0,todo:1,done:2,cancelled:3}[a.cls]||1)-({doing:0,todo:1,done:2,cancelled:3}[b.cls]||1));
     const doingProj=projRows.filter(p=>p.cls==='doing');
     const todoProj =projRows.filter(p=>p.cls==='todo');
@@ -2605,6 +2837,25 @@ async function loadDashboard() {
     for (const h of habitKeys) hCounts[h.key]=0;
     for (const pg of habits) { for (const h of habitKeys) { if(pg.properties[h.key]?.checkbox) hCounts[h.key]++; } }
 
+    // ── Month habit counts ──
+    const hMonthCounts={};
+    for (const h of habitKeys) hMonthCounts[h.key]=0;
+    const habitMonth = habitMonthData.results||[];
+    const mDays = habitMonth.length || 1;
+    for (const pg of habitMonth) { for (const h of habitKeys) { if(pg.properties[h.key]?.checkbox) hMonthCounts[h.key]++; } }
+
+    // ── SVG donut helper ──
+    function donut(pct, color, size=80, stroke=9) {
+      const r = (size-stroke*2)/2;
+      const circ = 2*Math.PI*r;
+      const offset = circ - (pct/100)*circ;
+      return `<svg width="${size}" height="${size}" style="transform:rotate(-90deg)">
+        <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--surface3)" stroke-width="${stroke}"/>
+        <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}"
+          stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}" stroke-linecap="round"/>
+      </svg>`;
+    }
+
     // ══ HTML ══
     let html = `
 <div class="dash-grid">
@@ -2619,7 +2870,7 @@ async function loadDashboard() {
     <div class="dash-sub" style="font-size:0.72rem;${overdue>0?'color:#ef5350;':'color:var(--green-light);'}">${overdue>0?'點按查看 ›':'目前良好 ✨'}</div>
   </div>
   <div class="dash-card full" style="cursor:pointer" onclick="openDashDrill('🔵 進行中任務 (${doing}件)',_dashDoingTasks)">
-    <div class="dash-label">完成率 <span style="font-size:0.62rem;color:var(--text3);font-weight:400;">點按看進行中</span></div>
+    <div class="dash-label">總完成率 <span style="font-size:0.62rem;color:var(--text3);font-weight:400;">點按看進行中</span></div>
     <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
       <div style="flex:1"><div class="dash-bar-wrap"><div class="dash-bar green" style="width:${rate}%"></div></div></div>
       <b style="color:var(--green-light);font-size:1.05rem;">${rate}%</b>
@@ -2628,11 +2879,41 @@ async function loadDashboard() {
   </div>
 </div>
 
+<div class="dash-section-title">📈 當周 ／ 當月 進度</div>
+<div class="dash-grid" style="margin-bottom:14px;">
+  <div class="dash-card" style="align-items:center;flex-direction:row;gap:12px;">
+    <div style="position:relative;flex-shrink:0;">
+      ${donut(weekRate,'var(--blue-light)',80,9)}
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+        <span style="font-size:0.95rem;font-weight:700;color:var(--text)">${weekRate}%</span>
+      </div>
+    </div>
+    <div>
+      <div class="dash-label">本週完成率</div>
+      <div style="font-size:0.78rem;color:var(--text2);margin-top:3px;">✅${weekDone}／${weekTotal} 件</div>
+      <div style="font-size:0.68rem;color:var(--text3);margin-top:2px;">近7天排程任務</div>
+    </div>
+  </div>
+  <div class="dash-card" style="align-items:center;flex-direction:row;gap:12px;">
+    <div style="position:relative;flex-shrink:0;">
+      ${donut(monthRate,'var(--green-light)',80,9)}
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+        <span style="font-size:0.95rem;font-weight:700;color:var(--text)">${monthRate}%</span>
+      </div>
+    </div>
+    <div>
+      <div class="dash-label">本月完成率</div>
+      <div style="font-size:0.78rem;color:var(--text2);margin-top:3px;">✅${monthDone}／${monthTotal} 件</div>
+      <div style="font-size:0.68rem;color:var(--text3);margin-top:2px;">本月1日起</div>
+    </div>
+  </div>
+</div>
+
 <div class="dash-section-title">📊 狀態分佈</div>
 <div class="dash-card" style="margin-bottom:12px;">
   <div class="dash-status-row">
-    ${[['doing','進行中 / 追蹤中',doing,_dashDoingTasks],['todo','待處理',todo,_dashTodoTasks],['done','已完成',done,_dashDoneTasks],['cancelled','已取消',cancelled,_dashCancelledTasks]].map(([cls,label,count,arr])=>`
-    <div class="dash-status-item" style="cursor:pointer" onclick="openDashDrill('${label} (${count}件)',${cls==='doing'?'_dashDoingTasks':cls==='todo'?'_dashTodoTasks':cls==='done'?'_dashDoneTasks':'_dashCancelledTasks'})">
+    ${[['doing','進行中 / 追蹤中',doing,'_dashDoingTasks'],['todo','待處理',todo,'_dashTodoTasks'],['done','已完成',done,'_dashDoneTasks'],['cancelled','已取消',cancelled,'_dashCancelledTasks']].map(([cls,label,count,ref])=>`
+    <div class="dash-status-item" style="cursor:pointer" onclick="openDashDrill('${label} (${count}件)',${ref})">
       <div class="dash-status-dot" style="background:${SC[cls]}"></div>
       <div class="dash-status-name">${label}</div>
       <div style="flex:1;margin:0 8px"><div class="dash-bar-wrap"><div class="dash-bar" style="width:${total>0?Math.round(count/total*100):0}%;background:${SC[cls]}"></div></div></div>
@@ -2670,10 +2951,12 @@ async function loadDashboard() {
   <div class="dash-card" style="cursor:pointer" onclick="openDashDrill('🔵 進行中專案 (${doingProj.length}個)',${JSON.stringify(doingProj.map(p=>({name:p.name,status:p.status,cls:p.cls,due:null})))})">
     <div class="dash-num" style="font-size:1.5rem;color:var(--blue-light)">${doingProj.length}</div>
     <div class="dash-label">進行中</div>
+    <div class="dash-sub" style="font-size:0.7rem;color:var(--wine-light)">點按查看 ›</div>
   </div>
   <div class="dash-card" style="cursor:pointer" onclick="openDashDrill('⬜ 待啟動專案 (${todoProj.length}個)',${JSON.stringify(todoProj.map(p=>({name:p.name,status:p.status,cls:p.cls,due:null})))})">
     <div class="dash-num" style="font-size:1.5rem;color:var(--text3)">${todoProj.length}</div>
     <div class="dash-label">待啟動</div>
+    <div class="dash-sub" style="font-size:0.7rem;color:var(--wine-light)">點按查看 ›</div>
   </div>
 </div>
 <div class="dash-card" style="margin-bottom:12px;">
@@ -2681,11 +2964,13 @@ async function loadDashboard() {
     ${projRows.slice(0,10).map(pg=>{
       const dot=pg.cls==='doing'?'var(--blue-light)':pg.cls==='done'?'var(--green-light)':pg.cls==='cancelled'?'#ef5350':'var(--text3)';
       const sLabel=(pg.status||'').replace(/[🧋🍶🥛☕🍷🍵●◆🌟🌅📒💧👟💊✈️🗞]/g,'').trim().slice(0,5);
-      const short=pg.name.length>28?pg.name.slice(0,28)+'…':pg.name;
-      return `<div class="dash-status-item">
+      const short=pg.name.length>26?pg.name.slice(0,26)+'…':pg.name;
+      const projTaskList = [{name:pg.name, status:pg.status, cls:pg.cls, due:null}];
+      return `<div class="dash-status-item" style="cursor:pointer;padding:3px 0;" onclick="openDashDrill('🗂️ ${short.replace(/'/g,"\\'")}',${JSON.stringify(projTaskList)})">
         <div class="dash-status-dot" style="background:${dot}"></div>
         <div class="dash-status-name" style="font-size:0.8rem">${short}</div>
         <span style="font-size:0.62rem;padding:1px 5px;border-radius:6px;background:${dot}22;color:${dot};white-space:nowrap">${sLabel}</span>
+        <span style="font-size:0.7rem;color:var(--text3);margin-left:4px;">›</span>
       </div>`;
     }).join('')}
     ${projRows.length>10?`<div style="font-size:0.72rem;color:var(--text3);padding-top:4px;">共 ${projRows.length} 個專案</div>`:''}
@@ -2708,6 +2993,39 @@ async function loadDashboard() {
     }).join('')}
   </div>
 </div>`;
+
+    if (habitMonth.length>0) {
+      const topHabit = habitKeys.slice().sort((a,b)=>(hMonthCounts[b.key]||0)-(hMonthCounts[a.key]||0))[0];
+      const avgPct = Math.round(habitKeys.reduce((s,h)=>s+(hMonthCounts[h.key]||0),0)/habitKeys.length/mDays*100);
+      html += `
+<div class="dash-section-title">📅 本月習慣狀況</div>
+<div class="dash-grid" style="margin-bottom:12px;">
+  <div class="dash-card">
+    <div class="dash-num" style="font-size:1.5rem;">${avgPct}%</div>
+    <div class="dash-label">本月平均習慣率</div>
+    <div class="dash-sub" style="font-size:0.7rem;">共 ${mDays} 天紀錄</div>
+  </div>
+  <div class="dash-card">
+    <div class="dash-num" style="font-size:1.2rem;color:var(--green-light);">${hMonthCounts[topHabit?.key]||0}/${mDays}</div>
+    <div class="dash-label">最佳：${topHabit?.label||'—'}</div>
+    <div class="dash-sub" style="font-size:0.7rem;">本月最高完成</div>
+  </div>
+</div>
+<div class="dash-card" style="margin-bottom:12px;">
+  <div class="dash-status-row">
+    ${habitKeys.map(h=>{
+      const cnt=hMonthCounts[h.key]||0;
+      const pct=Math.round(cnt/mDays*100);
+      const bar=pct>=80?'var(--green-light)':pct>=50?'var(--wine-light)':'var(--orange-light)';
+      return `<div class="dash-status-item">
+        <div class="dash-status-name" style="font-size:0.78rem;min-width:58px">${h.label}</div>
+        <div style="flex:1;margin:0 8px"><div class="dash-bar-wrap"><div class="dash-bar" style="width:${pct}%;background:${bar}"></div></div></div>
+        <div class="dash-status-count" style="font-size:0.72rem">${pct}%</div>
+      </div>`;
+    }).join('')}
+  </div>
+</div>`;
+    }
 
     if (_dashUrgentTasks.length) {
       html += `<div class="dash-section-title" style="cursor:pointer" onclick="openDashDrill('🔴 高優先任務 (${_dashUrgentTasks.length}件)',_dashUrgentTasks)">🔴 高優先任務 <span style="font-size:0.7rem;font-weight:400;opacity:0.6">點按全覽 ›</span></div>`;
@@ -2735,6 +3053,191 @@ async function loadDashboard() {
     el.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">載入失敗</div></div>`;
     console.error(e);
   }
+}
+
+
+// ═══════════════════════════════════════
+// POMODORO TIMER
+// ═══════════════════════════════════════
+const POMO_MODES = { work:25, short:5, long:15 };
+let pomoMode = 'work';
+let pomoRunning = false;
+let pomoTimer = null;
+let pomoSecondsLeft = 25 * 60;
+let pomoTotalSeconds = 25 * 60;
+let pomoSessionsDone = 0;
+let pomoTodayPomos = 0;
+let pomoTodayMinutes = 0;
+let pomoCurrentTask = '';
+let pomoHistory = JSON.parse(localStorage.getItem('pomo_history_'+today()) || '[]');
+
+function initPomoPage() {
+  pomoTodayPomos = pomoHistory.filter(h=>h.type==='work').length;
+  pomoTodayMinutes = pomoHistory.filter(h=>h.type==='work').reduce((s,h)=>s+h.mins,0);
+  updatePomoDisplay();
+  renderPomoSessions();
+  renderPomoHistory();
+  renderPomoStats();
+}
+
+function setPomoMode(mode, btn) {
+  if (pomoRunning) { pomoStop(); }
+  pomoMode = mode;
+  document.querySelectorAll('.pomo-mode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const mins = parseInt(document.getElementById('pomoWorkMin')?.value||25);
+  const shortMins = parseInt(document.getElementById('pomoShortMin')?.value||5);
+  const longMins = parseInt(document.getElementById('pomoLongMin')?.value||15);
+  const modeMins = mode==='work'?mins:mode==='short'?shortMins:longMins;
+  pomoSecondsLeft = modeMins*60;
+  pomoTotalSeconds = modeMins*60;
+  const labels = {work:'專注時間',short:'短暫休息',long:'長時間休息'};
+  document.getElementById('pomoLabel').textContent = labels[mode];
+  const colors = {work:'var(--wine-light)',short:'var(--green-light)',long:'var(--blue-light)'};
+  document.getElementById('pomoRing').style.stroke = colors[mode];
+  updatePomoDisplay();
+}
+
+function pomoUpdateSettings() {
+  setPomoMode(pomoMode, document.getElementById('pomoMode'+pomoMode.charAt(0).toUpperCase()+pomoMode.slice(1)));
+}
+
+function updatePomoDisplay() {
+  const m = Math.floor(pomoSecondsLeft/60);
+  const s = pomoSecondsLeft%60;
+  document.getElementById('pomoTime').textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const pct = pomoTotalSeconds>0 ? (pomoSecondsLeft/pomoTotalSeconds) : 1;
+  const circ = 603;
+  document.getElementById('pomoRing').style.strokeDashoffset = (circ*(1-pct)).toFixed(1);
+  document.getElementById('pomoStartBtn').textContent = pomoRunning ? '⏸' : '▶';
+}
+
+function pomoToggle() {
+  if (pomoRunning) pomoStop();
+  else pomoStart();
+}
+
+function pomoStart() {
+  if (pomoSecondsLeft <= 0) { pomoReset(); }
+  pomoRunning = true;
+  document.getElementById('pomoStartBtn').textContent = '⏸';
+  pomoTimer = setInterval(() => {
+    if (pomoSecondsLeft <= 0) {
+      pomoComplete();
+      return;
+    }
+    pomoSecondsLeft--;
+    updatePomoDisplay();
+  }, 1000);
+}
+
+function pomoStop() {
+  pomoRunning = false;
+  clearInterval(pomoTimer);
+  pomoTimer = null;
+  document.getElementById('pomoStartBtn').textContent = '▶';
+}
+
+function pomoReset() {
+  pomoStop();
+  const workMins = parseInt(document.getElementById('pomoWorkMin')?.value||25);
+  const shortMins = parseInt(document.getElementById('pomoShortMin')?.value||5);
+  const longMins = parseInt(document.getElementById('pomoLongMin')?.value||15);
+  const modeMins = pomoMode==='work'?workMins:pomoMode==='short'?shortMins:longMins;
+  pomoSecondsLeft = modeMins*60;
+  pomoTotalSeconds = modeMins*60;
+  updatePomoDisplay();
+}
+
+function pomoSkip() {
+  pomoStop();
+  const modes = ['work','short','work','short','work','short','work','long'];
+  const nextIdx = (pomoSessionsDone % modes.length + 1) % modes.length;
+  const nextMode = modes[nextIdx];
+  const btn = document.getElementById('pomoMode'+nextMode.charAt(0).toUpperCase()+nextMode.slice(1));
+  if (btn) setPomoMode(nextMode, btn);
+}
+
+function pomoComplete() {
+  pomoStop();
+  const workMins = parseInt(document.getElementById('pomoWorkMin')?.value||25);
+  const completedMins = pomoMode==='work'?workMins:0;
+
+  // Play notification
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = pomoMode==='work'?880:440;
+    gain.gain.setValueAtTime(0.3,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.8);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.8);
+  } catch(e){}
+
+  if (pomoMode==='work') {
+    pomoSessionsDone++;
+    pomoTodayPomos++;
+    pomoTodayMinutes += completedMins;
+    const task = document.getElementById('pomoCustomTask')?.value.trim() || pomoCurrentTask || '未指定任務';
+    const entry = { type:'work', mins:completedMins, task, time:new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}), date:today() };
+    pomoHistory.push(entry);
+    localStorage.setItem('pomo_history_'+today(), JSON.stringify(pomoHistory));
+    showToast('🍅 番茄鐘完成！休息一下吧');
+    renderPomoSessions();
+    renderPomoHistory();
+    renderPomoStats();
+    // Auto switch to short/long break
+    const nextMode = pomoSessionsDone%4===0 ? 'long' : 'short';
+    setTimeout(()=>{
+      const btn = document.getElementById('pomoMode'+nextMode.charAt(0).toUpperCase()+nextMode.slice(1));
+      if(btn) setPomoMode(nextMode, btn);
+    }, 500);
+  } else {
+    showToast('🌿 休息結束！開始下一個番茄鐘');
+    setTimeout(()=>{
+      const btn = document.getElementById('pomoModeWork');
+      if(btn) setPomoMode('work', btn);
+    }, 500);
+  }
+}
+
+function pomoSetCustomTask(val) {
+  pomoCurrentTask = val;
+  document.getElementById('pomoTaskName').textContent = val || '（尚未選擇任務）';
+}
+
+function renderPomoSessions() {
+  const el = document.getElementById('pomoSessions');
+  if (!el) return;
+  const total = 4;
+  const done = pomoSessionsDone % 4;
+  let html='';
+  for(let i=0;i<total;i++){
+    const cls = i<done?'done':(i===done&&pomoRunning&&pomoMode==='work'?'current':'');
+    html += `<div class="pomo-session-dot ${cls}"></div>`;
+  }
+  el.innerHTML = html;
+}
+
+function renderPomoStats() {
+  const c = document.getElementById('pomoTodayCount');
+  const m = document.getElementById('pomoTotalMin');
+  if(c) c.textContent = pomoTodayPomos;
+  if(m) m.textContent = pomoTodayMinutes;
+}
+
+function renderPomoHistory() {
+  const el = document.getElementById('pomoHistory');
+  if (!el) return;
+  const items = [...pomoHistory].reverse().slice(0,10);
+  if (!items.length) { el.innerHTML='<div class="empty-state" style="padding:20px 0;"><div class="empty-icon">🍅</div><div class="empty-text">今日尚無紀錄</div></div>'; return; }
+  el.innerHTML = items.map(h=>`
+    <div class="pomo-history-item">
+      <span style="font-size:1rem;">${h.type==='work'?'🍅':'☕'}</span>
+      <span style="flex:1;font-size:0.82rem;color:var(--text)">${h.task||'—'}</span>
+      <span style="font-size:0.72rem;color:var(--text3);">${h.mins}分 · ${h.time}</span>
+    </div>`).join('');
 }
 
 
