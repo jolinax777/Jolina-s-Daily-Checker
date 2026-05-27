@@ -9,6 +9,9 @@
 <meta name="theme-color" content="#1a0a0a">
 <title>🌊 Jolina's War Room</title>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
@@ -841,6 +844,179 @@ body.dark-mode .combo-input { background: var(--surface3); color: var(--text); }
 body.dark-mode .modal,
 body.dark-mode .task-edit-panel,
 body.dark-mode .cal-detail-panel { background: var(--surface); }
+body.theme-forest {
+  --bg: #eef4ee;
+  --surface: #ffffff;
+  --surface2: #ddeedd;
+  --surface3: #c2dcc2;
+  --wine: #2e7d32;
+  --wine-light: #43a047;
+  --wine-glow: rgba(46,125,50,0.18);
+  --gold: #1b5e20;
+  --gold-light: #256427;
+  --text: #0d2010;
+  --text2: #2e5130;
+  --text3: #6a9e6c;
+  --green: #2e7d32;
+  --green-light: #43a047;
+  --blue: #2e7d32;
+  --blue-light: #43a047;
+  --orange: #bf6f0a;
+  --orange-light: #e8870e;
+  --purple: #5a3a7a;
+  --purple-light: #8a62cf;
+}
+body.theme-sand {
+  --bg: #faf6f0;
+  --surface: #ffffff;
+  --surface2: #f2ebe0;
+  --surface3: #e0d5c5;
+  --wine: #8b5e3c;
+  --wine-light: #b07d55;
+  --wine-glow: rgba(139,94,60,0.15);
+  --gold: #5c3d1e;
+  --gold-light: #7a5230;
+  --text: #2c1a0e;
+  --text2: #5c3d28;
+  --text3: #a0846e;
+  --green: #3d7a4a;
+  --green-light: #55a862;
+  --blue: #4a6f8a;
+  --blue-light: #6892a8;
+  --orange: #c25e2a;
+  --orange-light: #e07040;
+  --purple: #7a4a8a;
+  --purple-light: #a070b8;
+}
+body.theme-midnight {
+  --bg: #07080f;
+  --surface: #10121e;
+  --surface2: #181a2e;
+  --surface3: #252845;
+  --wine: #6366f1;
+  --wine-light: #818cf8;
+  --wine-glow: rgba(99,102,241,0.25);
+  --gold: #a5b4fc;
+  --gold-light: #c7d2fe;
+  --text: #e2e8f8;
+  --text2: #a0aec8;
+  --text3: #5a6888;
+  --green: #22c55e;
+  --green-light: #4ade80;
+  --orange-light: #fb923c;
+  --purple-light: #c084fc;
+}
+body.theme-rose {
+  --bg: #fdf2f4;
+  --surface: #ffffff;
+  --surface2: #fde8ec;
+  --surface3: #f9d0d8;
+  --wine: #be185d;
+  --wine-light: #db2777;
+  --wine-glow: rgba(190,24,93,0.15);
+  --gold: #881337;
+  --gold-light: #a21f4b;
+  --text: #1f0a10;
+  --text2: #6b2040;
+  --text3: #b06080;
+  --green: #15803d;
+  --green-light: #22c55e;
+  --blue: #1d5fa8;
+  --blue-light: #3b82f6;
+  --orange: #c2410c;
+  --orange-light: #ea580c;
+  --purple: #7c3aed;
+  --purple-light: #a78bfa;
+}
+body.theme-midnight .form-input,
+body.theme-midnight .form-select,
+body.theme-midnight .form-textarea,
+body.theme-midnight .combo-input { background: var(--surface3); color: var(--text); }
+body.theme-midnight .modal,
+body.theme-midnight .task-edit-panel,
+body.theme-midnight .cal-detail-panel { background: var(--surface); }
+
+.theme-modal-overlay,
+.routine-modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45); z-index: 800;
+  align-items: flex-end; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.theme-modal-overlay.open,
+.routine-modal-overlay.open { display: flex; animation: fadeIn 0.2s ease; }
+.theme-panel,
+.routine-panel {
+  background: var(--surface); border-radius: 24px 24px 0 0;
+  width: 100%; padding: 20px 20px calc(24px + var(--safe-bottom));
+  border-top: 1px solid var(--surface3);
+}
+.routine-panel { max-height: 88dvh; overflow-y: auto; }
+.theme-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px;
+}
+.theme-swatch {
+  border-radius: var(--radius); padding: 14px 10px; cursor: pointer;
+  text-align: center; font-size: 0.78rem; font-weight: 600;
+  border: 2.5px solid transparent; transition: all 0.2s;
+  position: relative;
+}
+.theme-swatch.active-theme { border-color: var(--wine-light); }
+.theme-swatch .theme-icon { font-size: 1.5rem; display: block; margin-bottom: 5px; }
+.theme-swatch .theme-check {
+  position: absolute; top: 6px; right: 8px;
+  font-size: 0.7rem; opacity: 0;
+}
+.theme-swatch.active-theme .theme-check { opacity: 1; }
+.routine-list { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+.routine-card {
+  background: var(--surface2); border: 1px solid var(--surface3);
+  border-radius: var(--radius); padding: 14px; position: relative;
+}
+.routine-card-name { font-weight: 600; font-size: 0.92rem; color: var(--text); margin-bottom: 4px; }
+.routine-card-count { font-size: 0.75rem; color: var(--text3); }
+.routine-card-actions { display: flex; gap: 8px; margin-top: 10px; }
+.routine-add-btn {
+  flex: 1; padding: 9px; border-radius: var(--radius-sm);
+  background: var(--wine); border: none; color: white;
+  font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  font-family: var(--font-body); transition: all 0.2s;
+}
+.routine-add-btn:active { background: var(--wine-light); }
+.routine-del-btn {
+  padding: 9px 12px; border-radius: var(--radius-sm);
+  background: transparent; border: 1px solid var(--surface3);
+  color: var(--text3); font-size: 0.82rem; cursor: pointer;
+  font-family: var(--font-body);
+}
+.routine-task-list { margin-top: 8px; }
+.routine-task-item {
+  font-size: 0.8rem; color: var(--text2); padding: 3px 0;
+  display: flex; align-items: center; gap: 5px;
+}
+.routine-task-item::before { content: '*'; color: var(--wine-light); }
+.routine-save-form {
+  background: var(--surface2); border: 1px solid var(--surface3);
+  border-radius: var(--radius); padding: 14px; margin-top: 10px;
+}
+.routine-task-edit-row { display: flex; gap: 6px; margin-bottom: 8px; }
+.routine-task-edit-row .form-input { flex: 1; }
+.routine-task-chips { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.routine-task-chip {
+  display: flex; align-items: center; background: var(--surface);
+  border: 1px solid var(--surface3); border-radius: var(--radius-sm);
+  padding: 7px 10px; font-size: 0.82rem; gap: 8px;
+}
+.routine-task-chip-name { flex: 1; color: var(--text2); }
+.routine-task-chip-del {
+  background: none; border: none; color: var(--text3);
+  cursor: pointer; font-size: 0.9rem; padding: 0 2px;
+}
+.routine-date-pick {
+  display: flex; gap: 8px; align-items: center;
+  margin-bottom: 10px; flex-wrap: wrap;
+}
+.routine-date-pick .form-input { flex: 1; min-width: 130px; }
 
 /* ── SEARCH BAR ── */
 .search-bar-wrap { position: relative; margin-bottom: 10px; }
@@ -939,7 +1115,7 @@ body.dark-mode .cal-detail-panel { background: var(--surface); }
     </div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
-    <button class="sync-btn" id="darkModeBtn" onclick="toggleDarkMode()" title="深色模式">🌙</button>
+    <button class="sync-btn" id="themeBtn" onclick="openThemePicker()" title="切換主題">🎨</button>
     <button class="sync-btn" onclick="resetToken()" title="重設Token" style="font-size:0.7rem;">⚙️</button>
     <button class="sync-btn" id="syncBtn" onclick="syncAll()" title="重新整理">↻</button>
   </div>
@@ -974,6 +1150,10 @@ body.dark-mode .cal-detail-panel { background: var(--surface); }
       <button class="action-btn" onclick="actionMoveToday()">
         <span class="btn-icon">↩️</span>
         <span>移至今日</span>
+      </button>
+      <button class="action-btn" onclick="openRoutineModal()">
+        <span class="btn-icon">📋</span>
+        <span>任務模板</span>
       </button>
       <button class="action-btn" onclick="actionArchive()">
         <span class="btn-icon">📦</span>
@@ -1388,6 +1568,57 @@ body.dark-mode .cal-detail-panel { background: var(--surface); }
     <div class="cal-detail-title" id="calDetailTitle"></div>
     <div id="calDetailBody"></div>
     <button class="btn-secondary" onclick="closeCalDetail()" style="margin-top:12px;">關閉</button>
+  </div>
+</div>
+
+<!-- THEME PICKER MODAL -->
+<div class="theme-modal-overlay" id="themeModalOverlay" onclick="closeThemePicker()">
+  <div class="theme-panel" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🎨 選擇主題</div>
+    <div class="theme-grid" id="themeGrid"></div>
+    <button class="btn-secondary" onclick="closeThemePicker()" style="margin-top:14px;">完成</button>
+  </div>
+</div>
+
+<!-- ROUTINE TEMPLATE MODAL -->
+<div class="routine-modal-overlay" id="routineModalOverlay" onclick="closeRoutineModal()">
+  <div class="routine-panel" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📋 重複任務模板</div>
+    <div style="font-size:0.78rem;color:var(--text3);margin-bottom:10px;">儲存常用任務組合，一鍵新增多個任務到指定日期。</div>
+
+    <label class="form-label">新增到哪天</label>
+    <div class="routine-date-pick">
+      <input class="form-input" type="date" id="routineDatePick">
+      <button class="btn-secondary" style="margin:0;padding:9px 12px;font-size:0.8rem;" onclick="document.getElementById('routineDatePick').value=today()">今天</button>
+    </div>
+
+    <div class="routine-list" id="routineList"></div>
+
+    <div style="margin-top:14px;">
+      <button class="btn-secondary" id="routineCreateToggleBtn" onclick="toggleRoutineCreateForm()" style="font-size:0.84rem;">＋ 新增模板</button>
+      <div id="routineCreateForm" style="display:none;margin-top:12px;">
+        <div class="routine-save-form">
+          <div class="form-group" style="margin-bottom:10px;">
+            <label class="form-label">模板名稱</label>
+            <input class="form-input" id="routineTemplateName" placeholder="例如：周一例行">
+          </div>
+          <label class="form-label">任務列表</label>
+          <div class="routine-task-chips" id="routineTaskChips"></div>
+          <div class="routine-task-edit-row">
+            <input class="form-input" id="routineNewTaskInput" placeholder="輸入任務名稱..." onkeydown="if(event.key==='Enter')addRoutineTaskItem()">
+            <button class="routine-add-btn" style="flex:0 0 auto;padding:9px 14px;" onclick="addRoutineTaskItem()">＋</button>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-primary" style="margin-top:0;" onclick="saveRoutineTemplate()">💾 儲存模板</button>
+            <button class="btn-secondary" style="margin-top:0;" onclick="toggleRoutineCreateForm()">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-secondary" onclick="closeRoutineModal()" style="margin-top:14px;">關閉</button>
   </div>
 </div>
 
@@ -4532,20 +4763,71 @@ function resetToken() {
 }
 
 // ═══════════════════════════════════════
-// DARK MODE
+// MULTI-THEME SYSTEM
 // ═══════════════════════════════════════
-function toggleDarkMode() {
-  const isDark = document.body.classList.toggle('dark-mode');
-  localStorage.setItem('dark_mode', isDark ? '1' : '0');
-  document.getElementById('darkModeBtn').textContent = isDark ? '☀️' : '🌙';
+const THEMES = [
+  { id: 'light',     label: '亮白',   icon: '☀️', bg: '#f0f4f8', accent: '#1a5fa8' },
+  { id: 'dark-mode', label: '深色',   icon: '🌙', bg: '#0d1117', accent: '#2a7fd4' },
+  { id: 'forest',    label: '森林綠', icon: '🌿', bg: '#eef4ee', accent: '#2e7d32' },
+  { id: 'sand',      label: '暖沙',   icon: '🏖️', bg: '#faf6f0', accent: '#8b5e3c' },
+  { id: 'midnight',  label: '深夜藍', icon: '🔮', bg: '#07080f', accent: '#6366f1' },
+  { id: 'rose',      label: '玫瑰',   icon: '🌸', bg: '#fdf2f4', accent: '#be185d' },
+];
+let _currentTheme = 'light';
+
+function applyTheme(id) {
+  THEMES.forEach(t => {
+    if (t.id !== 'light') document.body.classList.remove(t.id === 'dark-mode' ? 'dark-mode' : `theme-${t.id}`);
+  });
+  if (id !== 'light') document.body.classList.add(id === 'dark-mode' ? 'dark-mode' : `theme-${id}`);
+  _currentTheme = id;
+  localStorage.setItem('app_theme', id);
+  const theme = THEMES.find(x => x.id === id);
+  const btn = document.getElementById('themeBtn');
+  if (btn && theme) btn.textContent = theme.icon;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta && theme) meta.content = theme.bg;
+  renderThemeGrid();
 }
+
 function initDarkMode() {
-  const saved = localStorage.getItem('dark_mode');
-  // Auto dark: if no saved preference, use system
+  const saved = localStorage.getItem('app_theme');
+  if (!saved && localStorage.getItem('dark_mode') === '1') {
+    applyTheme('dark-mode');
+    return;
+  }
+  if (saved) {
+    applyTheme(saved);
+    return;
+  }
   const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
-  const isDark = saved !== null ? saved === '1' : prefersDark;
-  if (isDark) document.body.classList.add('dark-mode');
-  document.getElementById('darkModeBtn').textContent = isDark ? '☀️' : '🌙';
+  applyTheme(prefersDark ? 'dark-mode' : 'light');
+}
+
+function toggleDarkMode() { openThemePicker(); }
+
+function openThemePicker() {
+  renderThemeGrid();
+  document.getElementById('themeModalOverlay')?.classList.add('open');
+}
+
+function closeThemePicker() {
+  document.getElementById('themeModalOverlay')?.classList.remove('open');
+}
+
+function renderThemeGrid() {
+  const grid = document.getElementById('themeGrid');
+  if (!grid) return;
+  grid.innerHTML = THEMES.map(t => {
+    const active = _currentTheme === t.id ? 'active-theme' : '';
+    return `<div class="theme-swatch ${active}"
+      style="background:${t.bg};color:${t.accent};border-color:${active ? t.accent : 'transparent'};"
+      onclick="applyTheme('${t.id}');closeThemePicker();">
+      <span class="theme-icon">${t.icon}</span>
+      ${t.label}
+      <span class="theme-check">✓</span>
+    </div>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════════
@@ -4562,6 +4844,151 @@ function updateHeaderProgress(done, total) {
   fill.style.width = pct + '%';
   fill.style.background = pct === 100 ? 'var(--green-light)' : pct >= 60 ? 'var(--wine-light)' : 'var(--orange-light)';
   text.textContent = `${done}/${total} 件`;
+}
+
+// ═══════════════════════════════════════
+// ROUTINE TEMPLATES
+// ═══════════════════════════════════════
+const ROUTINE_KEY = 'war_room_routines_v2';
+let _routineEditTasks = [];
+
+function loadRoutines() {
+  try { return JSON.parse(localStorage.getItem(ROUTINE_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveRoutines(list) {
+  localStorage.setItem(ROUTINE_KEY, JSON.stringify(list));
+}
+
+function openRoutineModal() {
+  const date = document.getElementById('routineDatePick');
+  if (date && !date.value) date.value = today();
+  renderRoutineList();
+  renderRoutineTaskChips();
+  document.getElementById('routineModalOverlay')?.classList.add('open');
+}
+
+function closeRoutineModal() {
+  document.getElementById('routineModalOverlay')?.classList.remove('open');
+  const form = document.getElementById('routineCreateForm');
+  if (form) form.style.display = 'none';
+  const name = document.getElementById('routineTemplateName');
+  if (name) name.value = '';
+  const input = document.getElementById('routineNewTaskInput');
+  if (input) input.value = '';
+  _routineEditTasks = [];
+  renderRoutineTaskChips();
+}
+
+function toggleRoutineCreateForm() {
+  const form = document.getElementById('routineCreateForm');
+  if (!form) return;
+  const open = form.style.display === 'none';
+  form.style.display = open ? 'block' : 'none';
+  if (open) {
+    document.getElementById('routineTemplateName')?.focus();
+    const date = document.getElementById('routineDatePick');
+    if (date && !date.value) date.value = today();
+  }
+}
+
+function addRoutineTaskItem() {
+  const input = document.getElementById('routineNewTaskInput');
+  const value = input?.value.trim() || '';
+  if (!value) return;
+  _routineEditTasks.push(value);
+  input.value = '';
+  renderRoutineTaskChips();
+  input.focus();
+}
+
+function removeRoutineEditTask(index) {
+  _routineEditTasks.splice(index, 1);
+  renderRoutineTaskChips();
+}
+
+function renderRoutineTaskChips() {
+  const el = document.getElementById('routineTaskChips');
+  if (!el) return;
+  if (!_routineEditTasks.length) {
+    el.innerHTML = '<div style="font-size:0.78rem;color:var(--text3);padding:4px 0;">尚未加入任何任務</div>';
+    return;
+  }
+  el.innerHTML = _routineEditTasks.map((task, index) => `
+    <div class="routine-task-chip">
+      <span class="routine-task-chip-name">${escapeHtml(task)}</span>
+      <button class="routine-task-chip-del" onclick="removeRoutineEditTask(${index})">×</button>
+    </div>`).join('');
+}
+
+function saveRoutineTemplate() {
+  const name = document.getElementById('routineTemplateName')?.value.trim() || '';
+  if (!name) { showToast('⚠️ 請輸入模板名稱'); return; }
+  if (!_routineEditTasks.length) { showToast('⚠️ 請加入至少一個任務'); return; }
+  const routines = loadRoutines();
+  routines.push({ id: Date.now().toString(), name, tasks: [..._routineEditTasks] });
+  saveRoutines(routines);
+  showToast(`✅ 模板「${name}」已儲存`);
+  _routineEditTasks = [];
+  renderRoutineTaskChips();
+  document.getElementById('routineTemplateName').value = '';
+  document.getElementById('routineNewTaskInput').value = '';
+  document.getElementById('routineCreateForm').style.display = 'none';
+  renderRoutineList();
+}
+
+function deleteRoutineTemplate(id) {
+  if (!confirm('確定要刪除這個模板嗎？')) return;
+  saveRoutines(loadRoutines().filter(r => r.id !== id));
+  renderRoutineList();
+  showToast('模板已刪除');
+}
+
+async function applyRoutineTemplate(id) {
+  const template = loadRoutines().find(r => r.id === id);
+  if (!template) return;
+  const dateValue = document.getElementById('routineDatePick')?.value || today();
+  showToast(`正在新增 ${template.tasks.length} 個任務...`);
+  let count = 0;
+  for (const taskName of template.tasks) {
+    try {
+      await notionCreate(DB.TASK, {
+        'Tasks Name': { title: [{ text: { content: `［例行］${taskName}` } }] },
+        'Status 任務階段': { status: { name: '🧋未開始' } },
+        'Due 排程執行日': { date: { start: dateValue } },
+        'Type 任務類型': { select: { name: '🟩S3－Admin 行政任務' } },
+      });
+      count++;
+    } catch(e) {
+      console.error('Failed to add routine task', taskName, e);
+    }
+  }
+  showToast(`✅ 已新增 ${count} 個任務`);
+  closeRoutineModal();
+  loadTasks();
+}
+
+function renderRoutineList() {
+  const el = document.getElementById('routineList');
+  if (!el) return;
+  const routines = loadRoutines();
+  if (!routines.length) {
+    el.innerHTML = '<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:0.85rem;">還沒有任何模板<br>點下方「新增模板」來建立第一個。</div>';
+    return;
+  }
+  el.innerHTML = routines.map(r => `
+    <div class="routine-card">
+      <div class="routine-card-name">📋 ${escapeHtml(r.name)}</div>
+      <div class="routine-card-count">${r.tasks.length} 個任務</div>
+      <div class="routine-task-list">
+        ${r.tasks.map(t => `<div class="routine-task-item">${escapeHtml(t)}</div>`).join('')}
+      </div>
+      <div class="routine-card-actions">
+        <button class="routine-add-btn" onclick="applyRoutineTemplate('${r.id}')">一鍵新增</button>
+        <button class="routine-del-btn" onclick="deleteRoutineTemplate('${r.id}')">刪除</button>
+      </div>
+    </div>`).join('');
 }
 
 // ═══════════════════════════════════════
