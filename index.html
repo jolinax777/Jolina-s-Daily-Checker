@@ -496,6 +496,33 @@ body {
 }
 .gcal-settings.open { display:block; }
 .gcal-note { font-size:0.7rem; color:var(--text3); line-height:1.55; margin-top:6px; }
+.gcal-picker-head {
+  display:flex; align-items:center; justify-content:space-between; gap:8px; margin:8px 0;
+}
+.gcal-picker-list {
+  display:grid; gap:6px; margin-top:8px; max-height:220px; overflow:auto;
+}
+.gcal-picker-row {
+  display:flex; align-items:center; gap:9px; padding:8px 10px;
+  border:1px solid var(--surface3); border-radius:var(--radius-sm);
+  background:var(--surface2); font-size:0.78rem; color:var(--text2);
+}
+.gcal-picker-row input { width:16px; height:16px; flex-shrink:0; }
+.gcal-color-swatch {
+  width:14px; height:14px; border-radius:50%; flex-shrink:0;
+  border:1px solid rgba(13,33,55,0.12);
+}
+.gcal-picker-main { min-width:0; flex:1; }
+.gcal-picker-title { font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gcal-picker-sub { color:var(--text3); font-size:0.68rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gcal-load-state {
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  margin-top:8px; font-size:0.72rem; color:var(--text3);
+}
+.gcal-state-pill {
+  border:1px solid var(--surface3); background:var(--surface2);
+  border-radius:999px; padding:4px 8px;
+}
 .gcal-log {
   display:none; margin-top:8px; max-height:90px; overflow:auto;
   background:var(--surface2); border:1px solid var(--surface3); border-radius:var(--radius-sm);
@@ -557,6 +584,19 @@ body {
 .cal-detail-chip.archived { background: var(--surface2); color: var(--text3); border-left: 3px solid var(--surface3); text-decoration: line-through; opacity: 0.6; }
 .cal-detail-chip.cancelled { background: rgba(198,40,40,0.08); color: #ef5350; border-left: 3px solid #ef5350; }
 .cal-detail-chip.gcal { background: rgba(90,58,154,0.1); color: var(--purple-light); border-left: 3px solid var(--purple-light); }
+.gcal-detail-card {
+  background:var(--surface2); border:1px solid var(--surface3);
+  border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:8px;
+  color:var(--text2); border-left:4px solid var(--purple-light);
+}
+.gcal-detail-top { display:flex; align-items:flex-start; gap:8px; }
+.gcal-detail-title { font-weight:700; color:var(--text); line-height:1.35; flex:1; }
+.gcal-detail-meta { margin-top:6px; display:grid; gap:4px; font-size:0.74rem; color:var(--text3); }
+.gcal-detail-desc {
+  margin-top:8px; font-size:0.76rem; color:var(--text2); line-height:1.5;
+  max-height:80px; overflow:auto;
+}
+.gcal-detail-actions { margin-top:8px; display:flex; justify-content:flex-end; }
 
 /* ── CALENDAR LIST: colored chips ── */
 .cal-task-chip.doing   { background: rgba(42,127,212,0.15); color: var(--blue-light); }
@@ -1210,10 +1250,16 @@ body.dark-mode .cal-detail-panel { background: var(--surface); }
           <input class="form-input" id="gcalOverlayIds" placeholder="生理期@gmail.com, 繳費提醒@group.calendar.google.com">
           <div class="gcal-note">用逗號分隔。這些只會顯示在 PWA 月曆，不會轉成 Notion 任務。</div>
         </div>
+        <div class="gcal-picker-head">
+          <span class="form-label" style="margin:0;">選擇要顯示的 Google 日曆</span>
+          <button class="gcal-mini-btn" onclick="loadGoogleCalendarList()">重新讀取清單</button>
+        </div>
+        <div class="gcal-picker-list" id="gcalCalendarPicker"></div>
         <button class="btn-secondary" onclick="saveGoogleCalendarSettings()">儲存 Google 設定</button>
         <div class="gcal-note" id="gcalOriginNote"></div>
       </div>
       <div class="gcal-note" id="gcalDebugNote"></div>
+      <div class="gcal-load-state" id="gcalLoadState"></div>
       <div class="gcal-log" id="gcalLog"></div>
     </div>
     <div id="calContent"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
@@ -1496,6 +1542,12 @@ let googleCalendarSettings = {
   calendarId: localStorage.getItem('gcal_calendar_id') || 'primary',
   overlayIds: localStorage.getItem('gcal_overlay_ids') || ''
 };
+let googleCalendarList = JSON.parse(localStorage.getItem('gcal_calendar_list') || '[]');
+let googleOverlayState = {
+  lastLoaded: localStorage.getItem('gcal_last_loaded') || '',
+  count: Number(localStorage.getItem('gcal_last_count') || 0),
+  failures: JSON.parse(localStorage.getItem('gcal_last_failures') || '[]')
+};
 
 // ═══════════════════════════════════════
 // UTILS
@@ -1507,6 +1559,16 @@ function todayFormatted() {
   const d = new Date();
   const days = ['日','一','二','三','四','五','六'];
   return `${d.getMonth()+1}月${d.getDate()}日 星期${days[d.getDay()]}`;
+}
+
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
 }
 
 async function notionFetch(url, options) {
@@ -1749,6 +1811,8 @@ function updateGCalUI() {
     const idOk = googleCalendarSettings.clientId.endsWith('.apps.googleusercontent.com') ? '格式看起來正確' : 'Client ID 應以 .apps.googleusercontent.com 結尾';
     debug.textContent = `診斷：Google script ${gis}｜${idOk}`;
   }
+  renderGoogleCalendarPicker();
+  updateGoogleOverlayState();
 }
 
 function hasValidGoogleToken() {
@@ -1773,12 +1837,71 @@ function clearGoogleToken() {
   sessionStorage.removeItem('gcal_token_expires_at');
 }
 
+function getGoogleCalendarColor(calendarId = '') {
+  const found = googleCalendarList.find(c => c.id === calendarId);
+  if (found?.backgroundColor) return found.backgroundColor;
+  const palette = ['#7c5cff', '#e85d8f', '#ef6c35', '#2a9d8f', '#1a95d1', '#a35f00', '#6d7f2a', '#c44f7f'];
+  let hash = 0;
+  for (const ch of calendarId) hash = ((hash << 5) - hash) + ch.charCodeAt(0);
+  return palette[Math.abs(hash) % palette.length];
+}
+
+function getGoogleCalendarLabel(calendarId = '') {
+  const found = googleCalendarList.find(c => c.id === calendarId);
+  return found?.summary || (calendarId ? calendarId.split('@')[0] : 'Google');
+}
+
+function renderGoogleCalendarPicker() {
+  const el = document.getElementById('gcalCalendarPicker');
+  if (!el) return;
+  if (!googleCalendarList.length) {
+    el.innerHTML = `<div class="gcal-note">連線後按「重新讀取清單」，就可以用勾選取代手動貼 Calendar ID。</div>`;
+    return;
+  }
+  const selected = new Set(getOverlayCalendarIds());
+  el.innerHTML = googleCalendarList.map(cal => {
+    const id = escapeHtml(cal.id);
+    const title = escapeHtml(cal.summaryOverride || cal.summary || cal.id);
+    const sub = escapeHtml(`${cal.primary ? '主要日曆' : cal.accessRole || 'reader'}｜${cal.id}`);
+    const color = getGoogleCalendarColor(cal.id);
+    const checked = selected.has(cal.id) ? 'checked' : '';
+    return `<label class="gcal-picker-row">
+      <input type="checkbox" value="${id}" ${checked} onchange="updateGCalOverlayFromPicker()">
+      <span class="gcal-color-swatch" style="background:${color};"></span>
+      <span class="gcal-picker-main"><span class="gcal-picker-title">${title}</span><span class="gcal-picker-sub">${sub}</span></span>
+    </label>`;
+  }).join('');
+}
+
+function updateGCalOverlayFromPicker() {
+  const ids = [...document.querySelectorAll('#gcalCalendarPicker input:checked')].map(x => x.value);
+  const overlay = document.getElementById('gcalOverlayIds');
+  if (overlay) overlay.value = ids.join(',');
+  googleCalendarSettings.overlayIds = ids.join(',');
+  localStorage.setItem('gcal_overlay_ids', googleCalendarSettings.overlayIds);
+  updateGoogleOverlayState();
+}
+
+function updateGoogleOverlayState() {
+  const el = document.getElementById('gcalLoadState');
+  if (!el) return;
+  const selectedCount = getOverlayCalendarIds().length;
+  const last = googleOverlayState.lastLoaded ? new Date(googleOverlayState.lastLoaded).toLocaleString('zh-TW', { hour12:false }) : '尚未載入';
+  const failText = googleOverlayState.failures.length ? `失敗 ${googleOverlayState.failures.length} 個` : '無失敗';
+  el.innerHTML = `
+    <span class="gcal-state-pill">顯示日曆 ${selectedCount} 個</span>
+    <span class="gcal-state-pill">Google 事件 ${googleOverlayState.count} 筆</span>
+    <span class="gcal-state-pill">最後載入：${escapeHtml(last)}</span>
+    <span class="gcal-state-pill">${escapeHtml(failText)}</span>`;
+}
+
 function toggleGCalSettings() {
   document.getElementById('gcalSettings')?.classList.toggle('open');
   updateGCalUI();
 }
 
 function saveGoogleCalendarSettings() {
+  const oldClientId = googleCalendarSettings.clientId;
   const clientId = document.getElementById('gcalClientId')?.value.trim() || '';
   const calendarId = document.getElementById('gcalCalendarId')?.value.trim() || 'primary';
   const overlayIds = document.getElementById('gcalOverlayIds')?.value.trim() || '';
@@ -1787,7 +1910,7 @@ function saveGoogleCalendarSettings() {
   localStorage.setItem('gcal_calendar_id', calendarId);
   localStorage.setItem('gcal_overlay_ids', overlayIds);
   googleTokenClient = null;
-  clearGoogleToken();
+  if (oldClientId && oldClientId !== clientId) clearGoogleToken();
   updateGCalUI();
   showToast('✅ Google 設定已儲存');
 }
@@ -1904,6 +2027,9 @@ async function connectGoogleCalendar() {
       }
       throw e;
     }
+    if (!googleCalendarList.length) {
+      try { await loadGoogleCalendarList(); } catch(e) {}
+    }
     showToast('✅ Google Calendar 已連線');
   } catch(e) {
     gcalLog(`連線失敗：${friendlyErrorMessage(e)}`);
@@ -1937,6 +2063,43 @@ async function gcalFetch(path, options = {}, calendarIdOverride = null) {
   const data = text ? JSON.parse(text) : {};
   if (!res.ok) throw new Error(data.error?.message || `Google Calendar API ${res.status}`);
   return data;
+}
+
+async function gcalApiFetch(path, options = {}) {
+  const token = await ensureGoogleToken();
+  const res = await fetch(`https://www.googleapis.com/calendar/v3${path}`, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    }
+  });
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : {};
+  if (!res.ok) throw new Error(data.error?.message || `Google Calendar API ${res.status}`);
+  return data;
+}
+
+async function loadGoogleCalendarList() {
+  try {
+    saveGoogleCalendarSettings();
+    showToast('📅 正在讀取 Google 日曆清單...');
+    const data = await gcalApiFetch('/users/me/calendarList?minAccessRole=reader&showHidden=false');
+    googleCalendarList = (data.items || []).sort((a, b) => {
+      if (a.primary) return -1;
+      if (b.primary) return 1;
+      return (a.summary || '').localeCompare(b.summary || '', 'zh-Hant');
+    });
+    localStorage.setItem('gcal_calendar_list', JSON.stringify(googleCalendarList));
+    renderGoogleCalendarPicker();
+    updateGoogleOverlayState();
+    gcalLog(`已讀取 ${googleCalendarList.length} 個 Google 日曆`);
+    showToast(`✅ 已讀取 ${googleCalendarList.length} 個 Google 日曆`);
+  } catch(e) {
+    gcalLog(`讀取 Google 日曆清單失敗：${friendlyErrorMessage(e)}`);
+    showToast('⚠️ ' + friendlyErrorMessage(e), 5000);
+  }
 }
 
 function notionTaskToEvent(task) {
@@ -1975,6 +2138,14 @@ function eventToTaskName(event) {
   return event.summary || '未命名 Google 事件';
 }
 
+function formatGoogleEventDateTime(value = '', allDay = false) {
+  if (!value) return '';
+  if (allDay) return value;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
 function addGoogleEventToCalendarCache(event, calendarId = '') {
   if (event.extendedProperties?.private?.warRoomManaged === 'true' || event.extendedProperties?.private?.notionPageId) return;
   const startRaw = event.start?.dateTime || event.start?.date;
@@ -1993,7 +2164,13 @@ function addGoogleEventToCalendarCache(event, calendarId = '') {
     fullDue: startRaw,
     source: 'google',
     calendarId,
-    htmlLink: event.htmlLink || ''
+    calendarName: getGoogleCalendarLabel(calendarId),
+    calendarColor: getGoogleCalendarColor(calendarId),
+    htmlLink: event.htmlLink || '',
+    location: event.location || '',
+    description: event.description || '',
+    endRaw: event.end?.dateTime || event.end?.date || '',
+    allDay: Boolean(event.start?.date)
   });
 }
 
@@ -2012,16 +2189,29 @@ function getOverlayCalendarIds() {
 async function fetchOverlayGoogleEvents(startDate, endDate) {
   const ids = getOverlayCalendarIds();
   if (!ids.length) return [];
+  const failures = [];
   const groups = await Promise.all(ids.map(async id => {
     try {
       const events = await fetchGoogleEventsForRange(startDate, endDate, id);
       return events.map(ev => ({ event: ev, calendarId: id }));
     } catch(e) {
-      gcalLog(`讀取 ${id} 失敗：${friendlyErrorMessage(e)}`);
+      const message = friendlyErrorMessage(e);
+      failures.push({ id, message });
+      gcalLog(`讀取 ${id} 失敗：${message}`);
       return [];
     }
   }));
-  return groups.flat();
+  const events = groups.flat();
+  googleOverlayState = {
+    lastLoaded: new Date().toISOString(),
+    count: events.length,
+    failures
+  };
+  localStorage.setItem('gcal_last_loaded', googleOverlayState.lastLoaded);
+  localStorage.setItem('gcal_last_count', String(googleOverlayState.count));
+  localStorage.setItem('gcal_last_failures', JSON.stringify(failures));
+  updateGoogleOverlayState();
+  return events;
 }
 
 function sortCalendarCache() {
@@ -2051,6 +2241,9 @@ async function loadGoogleCalendarOverlay() {
     sortCalendarCache();
     renderCalendar();
     gcalLog(`已載入 ${events.length} 筆 Google Calendar 事件到前端月曆`);
+    if (googleOverlayState.failures.length) {
+      gcalLog(`讀取失敗的日曆：${googleOverlayState.failures.map(f => f.id).join('、')}`);
+    }
     showToast(`✅ 已顯示 ${events.length} 筆 Google 事件`);
   } catch(e) {
     gcalLog(`載入 Google 事件失敗：${friendlyErrorMessage(e)}`);
@@ -3310,10 +3503,13 @@ async function loadCalendar() {
       if (!calTaskCache[dateKey]) calTaskCache[dateKey] = [];
       calTaskCache[dateKey].push({ id: page.id, name, status, cls, timeStr, fullDue: due });
     }
-    if (googleAccessToken) {
+    if (getOverlayCalendarIds().length && (googleAccessToken || localStorage.getItem('gcal_has_grant') === '1')) {
       try {
         const googleEvents = await fetchOverlayGoogleEvents(startDate, new Date(year, month + 1, 1));
         googleEvents.forEach(({event, calendarId}) => addGoogleEventToCalendarCache(event, calendarId));
+        if (googleOverlayState.failures.length) {
+          gcalLog(`Google 事件部分載入失敗：${googleOverlayState.failures.map(f => f.id).join('、')}`);
+        }
       } catch(e) {
         gcalLog(`Google 事件載入失敗：${friendlyErrorMessage(e)}`);
       }
@@ -3362,7 +3558,12 @@ function renderCalendar() {
         for (const t of tasks.slice(0, 3)) {
           const short = t.name.length > 22 ? t.name.slice(0,22)+'…' : t.name;
           const timeLabel = t.timeStr ? `<span style="font-size:0.65rem;opacity:0.7;margin-right:3px;">⏰${t.timeStr}</span>` : '';
-          html += `<span class="cal-task-chip ${t.cls}" onclick="event.stopPropagation();openTaskEdit('${t.id}','${t.name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${dateStr}','${t.timeStr}','${t.status}')">${timeLabel}${short}</span>`;
+          if (t.source === 'google') {
+            const color = t.calendarColor || getGoogleCalendarColor(t.calendarId);
+            html += `<span class="cal-task-chip gcal" style="background:${color}20;color:${color};" onclick="event.stopPropagation();openCalDetail('${dateStr}')">${timeLabel}${escapeHtml(short)}</span>`;
+          } else {
+            html += `<span class="cal-task-chip ${t.cls}" onclick="event.stopPropagation();openTaskEdit('${t.id}','${t.name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${dateStr}','${t.timeStr}','${t.status}')">${timeLabel}${escapeHtml(short)}</span>`;
+          }
         }
         if (tasks.length > 3) html += `<span class="cal-task-chip" style="cursor:pointer;opacity:0.7;" onclick="openCalDetail('${dateStr}')">+${tasks.length-3} 更多</span>`;
         html += '</div>';
@@ -3391,7 +3592,8 @@ function renderCalendar() {
       html += `<div class="cal-month-cell${todayCls}" onclick="openCalDetail('${dateStr}')">
         <div class="cal-month-day-num">${d}</div>`;
       for (const t of tasks.slice(0, 4)) {
-        html += `<div class="cal-dot ${t.cls}"></div>`;
+        const dotStyle = t.source === 'google' ? ` style="background:${t.calendarColor || getGoogleCalendarColor(t.calendarId)}"` : '';
+        html += `<div class="cal-dot ${t.cls}"${dotStyle}></div>`;
       }
       if (tasks.length > 4) html += `<div style="font-size:0.55rem;color:var(--text3);text-align:center;">+${tasks.length-4}</div>`;
       html += `</div>`;
@@ -3410,10 +3612,24 @@ function openCalDetail(dateStr) {
     const timeLabel = t.timeStr ? `<span style="font-size:0.75rem;opacity:0.65;margin-right:6px;">⏰${t.timeStr}</span>` : '';
     const safeN = t.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
     if (t.source === 'google') {
-      const calLabel = t.calendarId ? t.calendarId.split('@')[0] : 'Google';
-      return `<div class="cal-detail-chip gcal" style="cursor:default;">${timeLabel}<span>🟣 ${t.name}</span><span style="margin-left:auto;opacity:0.55;font-size:0.72rem;">${calLabel}</span></div>`;
+      const color = t.calendarColor || getGoogleCalendarColor(t.calendarId);
+      const calLabel = escapeHtml(t.calendarName || getGoogleCalendarLabel(t.calendarId));
+      const location = t.location ? `<div>地點：${escapeHtml(t.location)}</div>` : '';
+      const endLabel = t.endRaw ? formatGoogleEventDateTime(t.endRaw, t.allDay) : '';
+      const desc = t.description ? `<div class="gcal-detail-desc">${escapeHtml(t.description).replace(/\n/g, '<br>')}</div>` : '';
+      const link = t.htmlLink ? `<a class="gcal-mini-btn" href="${escapeHtml(t.htmlLink)}" target="_blank" rel="noopener">開啟 Google</a>` : '';
+      return `<div class="gcal-detail-card" style="border-left-color:${color};">
+        <div class="gcal-detail-top"><span class="gcal-color-swatch" style="background:${color};margin-top:2px;"></span><div class="gcal-detail-title">${escapeHtml(t.name)}</div></div>
+        <div class="gcal-detail-meta">
+          <div>日曆：${calLabel}</div>
+          <div>時間：${t.allDay ? '全天' : escapeHtml(t.timeStr || '未指定')}${endLabel ? ` - ${escapeHtml(endLabel)}` : ''}</div>
+          ${location}
+        </div>
+        ${desc}
+        ${link ? `<div class="gcal-detail-actions">${link}</div>` : ''}
+      </div>`;
     }
-    return `<div class="cal-detail-chip ${t.cls}" onclick="closeCalDetail();openTaskEdit('${t.id}','${safeN}','${dateStr}','${t.timeStr}','${t.status}')" style="cursor:pointer;">${timeLabel}${t.name} <button class="task-cal-btn" title="加入 Google 日曆" onclick="openGoogleCalendarForTask(event,'${safeN}','${dateStr}','${t.timeStr || ''}')" style="margin-left:auto;">📆</button><span style="opacity:0.4;font-size:0.75rem;">✏️</span></div>`;
+    return `<div class="cal-detail-chip ${t.cls}" onclick="closeCalDetail();openTaskEdit('${t.id}','${safeN}','${dateStr}','${t.timeStr}','${t.status}')" style="cursor:pointer;">${timeLabel}${escapeHtml(t.name)} <button class="task-cal-btn" title="加入 Google 日曆" onclick="openGoogleCalendarForTask(event,'${safeN}','${dateStr}','${t.timeStr || ''}')" style="margin-left:auto;">📆</button><span style="opacity:0.4;font-size:0.75rem;">✏️</span></div>`;
   }).join('');
   document.getElementById('calDetailBody').innerHTML = body;
   document.getElementById('calDetailModal').classList.add('open');
