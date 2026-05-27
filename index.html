@@ -1202,8 +1202,13 @@ body.dark-mode .cal-detail-panel { background: var(--surface); }
           <input class="form-input" id="gcalClientId" placeholder="xxxxx.apps.googleusercontent.com">
         </div>
         <div class="form-group">
-          <label class="form-label">Calendar ID</label>
+          <label class="form-label">同步寫入 Calendar ID</label>
           <input class="form-input" id="gcalCalendarId" placeholder="primary">
+        </div>
+        <div class="form-group">
+          <label class="form-label">前端顯示 Google Calendar IDs</label>
+          <input class="form-input" id="gcalOverlayIds" placeholder="生理期@gmail.com, 繳費提醒@group.calendar.google.com">
+          <div class="gcal-note">用逗號分隔。這些只會顯示在 PWA 月曆，不會轉成 Notion 任務。</div>
         </div>
         <button class="btn-secondary" onclick="saveGoogleCalendarSettings()">儲存 Google 設定</button>
         <div class="gcal-note" id="gcalOriginNote"></div>
@@ -1487,7 +1492,8 @@ let googleAccessToken = '';
 let googleTokenClient = null;
 let googleCalendarSettings = {
   clientId: localStorage.getItem('gcal_client_id') || '',
-  calendarId: localStorage.getItem('gcal_calendar_id') || 'primary'
+  calendarId: localStorage.getItem('gcal_calendar_id') || 'primary',
+  overlayIds: localStorage.getItem('gcal_overlay_ids') || ''
 };
 
 // ═══════════════════════════════════════
@@ -1728,11 +1734,13 @@ function openGoogleCalendarForTask(e, name, dateStr, timeStr = '') {
 function updateGCalUI() {
   const client = document.getElementById('gcalClientId');
   const cal = document.getElementById('gcalCalendarId');
+  const overlay = document.getElementById('gcalOverlayIds');
   const status = document.getElementById('gcalStatus');
   const note = document.getElementById('gcalOriginNote');
   const debug = document.getElementById('gcalDebugNote');
   if (client) client.value = googleCalendarSettings.clientId;
   if (cal) cal.value = googleCalendarSettings.calendarId || 'primary';
+  if (overlay) overlay.value = googleCalendarSettings.overlayIds || '';
   if (status) status.textContent = googleAccessToken ? `Google Calendar：已連線 (${googleCalendarSettings.calendarId || 'primary'})` : 'Google Calendar：尚未連線';
   if (note) note.innerHTML = `Google Cloud OAuth 請加入 JavaScript origin：<b>${location.origin}</b><br>若 popup 被阻擋，請另加入 Authorized redirect URI：<b>${getGCalRedirectUri()}</b>`;
   if (debug) {
@@ -1750,9 +1758,11 @@ function toggleGCalSettings() {
 function saveGoogleCalendarSettings() {
   const clientId = document.getElementById('gcalClientId')?.value.trim() || '';
   const calendarId = document.getElementById('gcalCalendarId')?.value.trim() || 'primary';
-  googleCalendarSettings = { clientId, calendarId };
+  const overlayIds = document.getElementById('gcalOverlayIds')?.value.trim() || '';
+  googleCalendarSettings = { clientId, calendarId, overlayIds };
   localStorage.setItem('gcal_client_id', clientId);
   localStorage.setItem('gcal_calendar_id', calendarId);
+  localStorage.setItem('gcal_overlay_ids', overlayIds);
   googleTokenClient = null;
   googleAccessToken = '';
   updateGCalUI();
@@ -1794,7 +1804,7 @@ function connectGoogleCalendarRedirect() {
     client_id: googleCalendarSettings.clientId,
     redirect_uri: redirectUri,
     response_type: 'token',
-    scope: 'https://www.googleapis.com/auth/calendar.events',
+    scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly',
     include_granted_scopes: 'true',
     prompt: 'consent'
   });
@@ -1834,7 +1844,7 @@ function ensureGoogleToken() {
     }
     googleTokenClient = google.accounts.oauth2.initTokenClient({
       client_id: googleCalendarSettings.clientId,
-      scope: 'https://www.googleapis.com/auth/calendar.events',
+      scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly',
       callback: tokenResponse => {
         gcalLog('收到 Google 授權回應');
         if (tokenResponse?.access_token) {
@@ -1886,9 +1896,9 @@ function disconnectGoogleCalendar() {
   showToast('已登出 Google Calendar');
 }
 
-async function gcalFetch(path, options = {}) {
+async function gcalFetch(path, options = {}, calendarIdOverride = null) {
   const token = await ensureGoogleToken();
-  const calendarId = encodeURIComponent(googleCalendarSettings.calendarId || 'primary');
+  const calendarId = encodeURIComponent(calendarIdOverride || googleCalendarSettings.calendarId || 'primary');
   const url = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}${path}`;
   const res = await fetch(url, {
     ...options,
@@ -1940,7 +1950,8 @@ function eventToTaskName(event) {
   return event.summary || '未命名 Google 事件';
 }
 
-function addGoogleEventToCalendarCache(event) {
+function addGoogleEventToCalendarCache(event, calendarId = '') {
+  if (event.extendedProperties?.private?.warRoomManaged === 'true' || event.extendedProperties?.private?.notionPageId) return;
   const startRaw = event.start?.dateTime || event.start?.date;
   if (!startRaw || !event.summary) return;
   const dateKey = startRaw.split('T')[0];
@@ -1956,13 +1967,36 @@ function addGoogleEventToCalendarCache(event) {
     timeStr,
     fullDue: startRaw,
     source: 'google',
+    calendarId,
     htmlLink: event.htmlLink || ''
   });
 }
 
-async function fetchGoogleEventsForRange(startDate, endDate) {
-  const data = await gcalFetch(`/events?timeMin=${encodeURIComponent(startDate.toISOString())}&timeMax=${encodeURIComponent(endDate.toISOString())}&singleEvents=true&showDeleted=false&orderBy=startTime`);
+async function fetchGoogleEventsForRange(startDate, endDate, calendarId = null) {
+  const data = await gcalFetch(`/events?timeMin=${encodeURIComponent(startDate.toISOString())}&timeMax=${encodeURIComponent(endDate.toISOString())}&singleEvents=true&showDeleted=false&orderBy=startTime`, {}, calendarId);
   return data.items || [];
+}
+
+function getOverlayCalendarIds() {
+  return (googleCalendarSettings.overlayIds || '')
+    .split(',')
+    .map(x => x.trim())
+    .filter(Boolean);
+}
+
+async function fetchOverlayGoogleEvents(startDate, endDate) {
+  const ids = getOverlayCalendarIds();
+  if (!ids.length) return [];
+  const groups = await Promise.all(ids.map(async id => {
+    try {
+      const events = await fetchGoogleEventsForRange(startDate, endDate, id);
+      return events.map(ev => ({ event: ev, calendarId: id }));
+    } catch(e) {
+      gcalLog(`讀取 ${id} 失敗：${friendlyErrorMessage(e)}`);
+      return [];
+    }
+  }));
+  return groups.flat();
 }
 
 function sortCalendarCache() {
@@ -1976,14 +2010,19 @@ function sortCalendarCache() {
 }
 
 async function loadGoogleCalendarOverlay() {
+  if (!getOverlayCalendarIds().length) {
+    showToast('請先在設定填入前端顯示用 Google Calendar IDs', 4500);
+    toggleGCalSettings();
+    return;
+  }
   const now = new Date();
   const target = new Date(now.getFullYear(), now.getMonth() + calOffset, 1);
   const startDate = new Date(target.getFullYear(), target.getMonth(), 1);
   const endDate = new Date(target.getFullYear(), target.getMonth() + 1, 1);
   try {
     showToast('📅 載入 Google 事件...');
-    const events = await fetchGoogleEventsForRange(startDate, endDate);
-    events.forEach(addGoogleEventToCalendarCache);
+    const events = await fetchOverlayGoogleEvents(startDate, endDate);
+    events.forEach(({event, calendarId}) => addGoogleEventToCalendarCache(event, calendarId));
     sortCalendarCache();
     renderCalendar();
     gcalLog(`已載入 ${events.length} 筆 Google Calendar 事件到前端月曆`);
@@ -2026,7 +2065,7 @@ async function syncGoogleCalendarMonth() {
   const end = new Date(target.getFullYear(), target.getMonth() + 1, 1);
   const startStr = start.toISOString().split('T')[0];
   const endStr = new Date(end.getTime() - 86400000).toISOString().split('T')[0];
-  showToast('🔄 Google 雙向同步中...', 2500);
+  showToast('🔄 寫入 Google Calendar...', 2500);
   try {
     await ensureGoogleToken();
     gcalLog(`同步範圍：${startStr} ~ ${endStr}`);
@@ -2055,7 +2094,7 @@ async function syncGoogleCalendarMonth() {
       const nid = ev.extendedProperties?.private?.notionPageId;
       if (nid) eventsByNotionId[nid] = ev;
     }
-    let createdG = 0, updatedG = 0, updatedN = 0, importedN = 0;
+    let createdG = 0, updatedG = 0;
     for (const task of notionTasks) {
       const ev = eventsByNotionId[task.id];
       if (!ev) {
@@ -2063,31 +2102,11 @@ async function syncGoogleCalendarMonth() {
         createdG++;
         continue;
       }
-      const gUpdated = new Date(ev.updated || 0).getTime();
-      const nUpdated = new Date(task.lastEdited || 0).getTime();
-      if (gUpdated > nUpdated + 30000) {
-        await updateNotionTaskFromEvent(task.id, ev);
-        updatedN++;
-      } else {
-        await gcalFetch(`/events/${encodeURIComponent(ev.id)}`, { method: 'PATCH', body: JSON.stringify(notionTaskToEvent(task)) });
-        updatedG++;
-      }
+      await gcalFetch(`/events/${encodeURIComponent(ev.id)}`, { method: 'PATCH', body: JSON.stringify(notionTaskToEvent(task)) });
+      updatedG++;
     }
-    for (const ev of googleEvents) {
-      if (ev.extendedProperties?.private?.notionPageId) continue;
-      if (ev.status === 'cancelled' || !ev.start || !ev.summary) continue;
-      const created = await createNotionTaskFromEvent(ev);
-      if (created?.id) {
-        const privateProps = { ...(ev.extendedProperties?.private || {}), notionPageId: created.id, warRoomManaged: 'true' };
-        await gcalFetch(`/events/${encodeURIComponent(ev.id)}`, {
-          method: 'PATCH',
-          body: JSON.stringify({ extendedProperties: { private: privateProps } })
-        });
-        importedN++;
-      }
-    }
-    gcalLog(`完成：Google 新增 ${createdG}、Google 更新 ${updatedG}、Notion 更新 ${updatedN}、Google 匯入 Notion ${importedN}`);
-    showToast('✅ Google Calendar 同步完成', 3000);
+    gcalLog(`完成：Google 新增 ${createdG}、Google 更新 ${updatedG}。Google 原生日曆不會匯入 Notion。`);
+    showToast('✅ 已將 Notion 任務寫入 Google', 3000);
     loadCalendar();
   } catch(e) {
     gcalLog(`失敗：${friendlyErrorMessage(e)}`);
@@ -3268,8 +3287,8 @@ async function loadCalendar() {
     }
     if (googleAccessToken) {
       try {
-        const googleEvents = await fetchGoogleEventsForRange(startDate, new Date(year, month + 1, 1));
-        googleEvents.forEach(addGoogleEventToCalendarCache);
+        const googleEvents = await fetchOverlayGoogleEvents(startDate, new Date(year, month + 1, 1));
+        googleEvents.forEach(({event, calendarId}) => addGoogleEventToCalendarCache(event, calendarId));
       } catch(e) {
         gcalLog(`Google 事件載入失敗：${friendlyErrorMessage(e)}`);
       }
@@ -3366,7 +3385,8 @@ function openCalDetail(dateStr) {
     const timeLabel = t.timeStr ? `<span style="font-size:0.75rem;opacity:0.65;margin-right:6px;">⏰${t.timeStr}</span>` : '';
     const safeN = t.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
     if (t.source === 'google') {
-      return `<div class="cal-detail-chip gcal" style="cursor:default;">${timeLabel}<span>🟣 ${t.name}</span><span style="margin-left:auto;opacity:0.55;font-size:0.72rem;">Google</span></div>`;
+      const calLabel = t.calendarId ? t.calendarId.split('@')[0] : 'Google';
+      return `<div class="cal-detail-chip gcal" style="cursor:default;">${timeLabel}<span>🟣 ${t.name}</span><span style="margin-left:auto;opacity:0.55;font-size:0.72rem;">${calLabel}</span></div>`;
     }
     return `<div class="cal-detail-chip ${t.cls}" onclick="closeCalDetail();openTaskEdit('${t.id}','${safeN}','${dateStr}','${t.timeStr}','${t.status}')" style="cursor:pointer;">${timeLabel}${t.name} <button class="task-cal-btn" title="加入 Google 日曆" onclick="openGoogleCalendarForTask(event,'${safeN}','${dateStr}','${t.timeStr || ''}')" style="margin-left:auto;">📆</button><span style="opacity:0.4;font-size:0.75rem;">✏️</span></div>`;
   }).join('');
