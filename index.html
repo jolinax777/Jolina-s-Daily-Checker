@@ -1488,7 +1488,8 @@ let habitData = {};
 let habitPageId = null;
 let journalPageId = null;
 let journalData = {};
-let googleAccessToken = '';
+let googleAccessToken = sessionStorage.getItem('gcal_access_token') || '';
+let googleTokenExpiresAt = Number(sessionStorage.getItem('gcal_token_expires_at') || 0);
 let googleTokenClient = null;
 let googleCalendarSettings = {
   clientId: localStorage.getItem('gcal_client_id') || '',
@@ -1741,13 +1742,35 @@ function updateGCalUI() {
   if (client) client.value = googleCalendarSettings.clientId;
   if (cal) cal.value = googleCalendarSettings.calendarId || 'primary';
   if (overlay) overlay.value = googleCalendarSettings.overlayIds || '';
-  if (status) status.textContent = googleAccessToken ? `Google Calendar：已連線 (${googleCalendarSettings.calendarId || 'primary'})` : 'Google Calendar：尚未連線';
+  if (status) status.textContent = hasValidGoogleToken() ? `Google Calendar：已連線 (${googleCalendarSettings.calendarId || 'primary'})` : 'Google Calendar：尚未連線';
   if (note) note.innerHTML = `Google Cloud OAuth 請加入 JavaScript origin：<b>${location.origin}</b><br>若 popup 被阻擋，請另加入 Authorized redirect URI：<b>${getGCalRedirectUri()}</b>`;
   if (debug) {
     const gis = window.google?.accounts?.oauth2 ? '已載入' : '尚未載入';
     const idOk = googleCalendarSettings.clientId.endsWith('.apps.googleusercontent.com') ? '格式看起來正確' : 'Client ID 應以 .apps.googleusercontent.com 結尾';
     debug.textContent = `診斷：Google script ${gis}｜${idOk}`;
   }
+}
+
+function hasValidGoogleToken() {
+  return Boolean(googleAccessToken && googleTokenExpiresAt && Date.now() < googleTokenExpiresAt);
+}
+
+function rememberGoogleToken(tokenResponse) {
+  if (!tokenResponse?.access_token) return;
+  const expiresIn = Number(tokenResponse.expires_in || 3600);
+  googleAccessToken = tokenResponse.access_token;
+  googleTokenExpiresAt = Date.now() + Math.max(60, expiresIn - 60) * 1000;
+  sessionStorage.setItem('gcal_access_token', googleAccessToken);
+  sessionStorage.setItem('gcal_token_expires_at', String(googleTokenExpiresAt));
+  localStorage.setItem('gcal_has_grant', '1');
+}
+
+function clearGoogleToken() {
+  googleAccessToken = '';
+  googleTokenExpiresAt = 0;
+  googleTokenClient = null;
+  sessionStorage.removeItem('gcal_access_token');
+  sessionStorage.removeItem('gcal_token_expires_at');
 }
 
 function toggleGCalSettings() {
@@ -1764,7 +1787,7 @@ function saveGoogleCalendarSettings() {
   localStorage.setItem('gcal_calendar_id', calendarId);
   localStorage.setItem('gcal_overlay_ids', overlayIds);
   googleTokenClient = null;
-  googleAccessToken = '';
+  clearGoogleToken();
   updateGCalUI();
   showToast('✅ Google 設定已儲存');
 }
@@ -1783,7 +1806,7 @@ function readGoogleRedirectToken() {
     return;
   }
   if (!token) return;
-  googleAccessToken = token;
+  rememberGoogleToken({ access_token: token, expires_in: hash.get('expires_in') || 3600 });
   updateGCalUI();
   history.replaceState(null, '', location.pathname + location.search);
   showToast('✅ Google Calendar 已連線');
@@ -1829,7 +1852,8 @@ function resetGCalLog() {
 
 function ensureGoogleToken() {
   return new Promise((resolve, reject) => {
-    if (googleAccessToken) { resolve(googleAccessToken); return; }
+    if (hasValidGoogleToken()) { resolve(googleAccessToken); return; }
+    if (googleAccessToken && !hasValidGoogleToken()) clearGoogleToken();
     if (!googleCalendarSettings.clientId) {
       reject(new Error('請先在 Google 設定填入 OAuth Client ID'));
       return;
@@ -1848,7 +1872,7 @@ function ensureGoogleToken() {
       callback: tokenResponse => {
         gcalLog('收到 Google 授權回應');
         if (tokenResponse?.access_token) {
-          googleAccessToken = tokenResponse.access_token;
+          rememberGoogleToken(tokenResponse);
           updateGCalUI();
           resolve(googleAccessToken);
         } else {
@@ -1861,8 +1885,9 @@ function ensureGoogleToken() {
         reject(new Error(msg || 'Google 授權視窗被阻擋'));
       }
     });
-    gcalLog('正在開啟 Google 授權視窗...');
-    googleTokenClient.requestAccessToken({ prompt: 'consent' });
+    const hasGrant = localStorage.getItem('gcal_has_grant') === '1';
+    gcalLog(hasGrant ? '正在重新取得 Google 授權...' : '正在開啟 Google 授權視窗...');
+    googleTokenClient.requestAccessToken({ prompt: hasGrant ? '' : 'consent' });
   });
 }
 
@@ -1890,8 +1915,8 @@ function disconnectGoogleCalendar() {
   if (googleAccessToken && window.google?.accounts?.oauth2) {
     google.accounts.oauth2.revoke(googleAccessToken, () => {});
   }
-  googleAccessToken = '';
-  googleTokenClient = null;
+  clearGoogleToken();
+  localStorage.removeItem('gcal_has_grant');
   updateGCalUI();
   showToast('已登出 Google Calendar');
 }
