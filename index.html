@@ -1727,6 +1727,7 @@ const DB = {
   SHOPPING: '1b4b35b5148a802dba96fac2485122dd',
   PROJECT:  '1afb35b5148a81adaf43c00c97890720'
 };
+const DEFAULT_GOOGLE_CLIENT_ID = '307784806759-4o9k3p65qfvios9jq8rs935i59es39ht.apps.googleusercontent.com';
 // Token 儲存在手機本地，不放在程式碼裡，GitHub 上完全看不到
 let TOKEN = localStorage.getItem('notion_token') || '';
 function getHeaders() {
@@ -1769,7 +1770,7 @@ let googleAccessToken = sessionStorage.getItem('gcal_access_token') || '';
 let googleTokenExpiresAt = Number(sessionStorage.getItem('gcal_token_expires_at') || 0);
 let googleTokenClient = null;
 let googleCalendarSettings = {
-  clientId: localStorage.getItem('gcal_client_id') || '',
+  clientId: localStorage.getItem('gcal_client_id') || DEFAULT_GOOGLE_CLIENT_ID,
   calendarId: localStorage.getItem('gcal_calendar_id') || 'primary',
   overlayIds: localStorage.getItem('gcal_overlay_ids') || ''
 };
@@ -1784,7 +1785,21 @@ let googleOverlayState = {
 // UTILS
 // ═══════════════════════════════════════
 function today() {
-  return new Date().toISOString().split('T')[0];
+  return localDateKey(new Date());
+}
+function localDateKey(value = new Date()) {
+  const d = value instanceof Date ? value : new Date(value);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+function dateKeyToLocalDate(dateStr) {
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+function daysBetweenDateKeys(dateStr, baseStr = today()) {
+  return Math.round((dateKeyToLocalDate(dateStr) - dateKeyToLocalDate(baseStr)) / 86400000);
 }
 function todayFormatted() {
   const d = new Date();
@@ -2008,7 +2023,7 @@ function buildGoogleCalendarUrl(name, dateStr, timeStr = '') {
   } else {
     const end = new Date(`${dateStr}T00:00:00`);
     end.setDate(end.getDate() + 1);
-    dates = `${compactCalendarDate(dateStr)}/${compactCalendarDate(end.toISOString().split('T')[0])}`;
+    dates = `${compactCalendarDate(dateStr)}/${compactCalendarDate(localDateKey(end))}`;
   }
   const params = new URLSearchParams({
     action: 'TEMPLATE',
@@ -2388,7 +2403,7 @@ function notionTaskToEvent(task) {
     const end = new Date(`${date}T00:00:00+08:00`);
     end.setDate(end.getDate() + 1);
     base.start = { date };
-    base.end = { date: end.toISOString().split('T')[0] };
+    base.end = { date: localDateKey(end) };
   }
   return base;
 }
@@ -2545,8 +2560,8 @@ async function syncGoogleCalendarMonth() {
   const target = new Date(now.getFullYear(), now.getMonth() + calOffset, 1);
   const start = new Date(target.getFullYear(), target.getMonth(), 1);
   const end = new Date(target.getFullYear(), target.getMonth() + 1, 1);
-  const startStr = start.toISOString().split('T')[0];
-  const endStr = new Date(end.getTime() - 86400000).toISOString().split('T')[0];
+  const startStr = localDateKey(start);
+  const endStr = localDateKey(new Date(end.getTime() - 86400000));
   showToast('🔄 寫入 Google Calendar...', 2500);
   try {
     await ensureGoogleToken();
@@ -3743,8 +3758,8 @@ async function loadCalendar() {
 
   const startDate = new Date(year, month, 1);
   const endDate   = new Date(year, month + 1, 0);
-  const startStr  = startDate.toISOString().split('T')[0];
-  const endStr    = endDate.toISOString().split('T')[0];
+  const startStr  = localDateKey(startDate);
+  const endStr    = localDateKey(endDate);
 
   try {
     const data = await notionQuery(DB.TASK, {
@@ -3792,13 +3807,13 @@ function renderCalendar() {
   const year  = target.getFullYear();
   const month = target.getMonth();
   const endDate  = new Date(year, month + 1, 0);
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = localDateKey(now);
 
   if (calView === 'list') {
     let html = '';
     for (let d = 1; d <= endDate.getDate(); d++) {
       const date    = new Date(year, month, d);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = localDateKey(date);
       const dow     = date.getDay();
       const isToday = dateStr === todayStr;
       const isWknd  = dow === 0 || dow === 6;
@@ -3847,7 +3862,7 @@ function renderCalendar() {
 
     for (let d = 1; d <= endDate.getDate(); d++) {
       const date    = new Date(year, month, d);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = localDateKey(date);
       const dow     = date.getDay();
       const isToday = dateStr === todayStr;
       const isWknd  = dow === 0 || dow === 6;
@@ -3949,7 +3964,7 @@ async function deleteTaskEdit() {
 let taskDateOffset = 0;
 function taskNavDate() {
   const d = new Date(); d.setDate(d.getDate() + taskDateOffset);
-  return d.toISOString().split('T')[0];
+  return localDateKey(d);
 }
 function updateTaskDateLabel() {
   const d = new Date(); d.setDate(d.getDate() + taskDateOffset);
@@ -3968,7 +3983,7 @@ function toggleTaskDatePicker() {
   if (inp.style.display !== 'none') inp.showPicker?.();
 }
 function onTaskDatePick(val) {
-  const diff = Math.round((new Date(val) - new Date(today())) / 86400000);
+  const diff = daysBetweenDateKeys(val);
   taskDateOffset = diff;
   document.getElementById('taskDatePicker').style.display = 'none';
   updateTaskDateLabel(); loadTasksByDate();
@@ -3978,7 +3993,7 @@ function onTaskDatePick(val) {
 let journalDateOffset = 0;
 function journalNavDate() {
   const d = new Date(); d.setDate(d.getDate() + journalDateOffset);
-  return d.toISOString().split('T')[0];
+  return localDateKey(d);
 }
 function updateJournalDateLabel() {
   const d = new Date(); d.setDate(d.getDate() + journalDateOffset);
@@ -3996,7 +4011,7 @@ function toggleJournalDatePicker() {
   if (inp.style.display !== 'none') inp.showPicker?.();
 }
 function onJournalDatePick(val) {
-  const diff = Math.round((new Date(val) - new Date(today())) / 86400000);
+  const diff = daysBetweenDateKeys(val);
   journalDateOffset = diff;
   document.getElementById('journalDatePicker').style.display = 'none';
   updateJournalDateLabel(); loadJournal();
@@ -4006,7 +4021,7 @@ function onJournalDatePick(val) {
 let habitDateOffset = 0;
 function habitNavDate() {
   const d = new Date(); d.setDate(d.getDate() + habitDateOffset);
-  return d.toISOString().split('T')[0];
+  return localDateKey(d);
 }
 function updateHabitDateLabel() {
   const d = new Date(); d.setDate(d.getDate() + habitDateOffset);
@@ -4024,7 +4039,7 @@ function toggleHabitDatePicker() {
   if (inp.style.display !== 'none') inp.showPicker?.();
 }
 function onHabitDatePick(val) {
-  const diff = Math.round((new Date(val) - new Date(today())) / 86400000);
+  const diff = daysBetweenDateKeys(val);
   habitDateOffset = diff;
   document.getElementById('habitDatePicker').style.display = 'none';
   updateHabitDateLabel(); loadHabits();
@@ -4074,11 +4089,11 @@ async function loadWeather() {
     // Render 7-day forecast if container exists
     const weekEl = document.getElementById('weatherWeek');
     if (weekEl && d.daily) {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = today();
       const days = d.daily.time || [];
       let html = '';
       days.forEach((dateStr, i) => {
-        const date = new Date(dateStr);
+        const date = dateKeyToLocalDate(dateStr);
         const dow = DAYS_SHORT[date.getDay()];
         const wxIcon = WX_CODE_ICON[d.daily.weathercode[i]] || '🌡';
         const maxT = Math.round(d.daily.temperature_2m_max[i]);
@@ -4152,10 +4167,10 @@ async function loadDashboard() {
   el.innerHTML = '<div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div>';
   try {
     const t0 = today();
-    const sevenDaysAgo = (() => { const d=new Date(); d.setDate(d.getDate()-6); return d.toISOString().split('T')[0]; })();
+    const sevenDaysAgo = (() => { const d=new Date(); d.setDate(d.getDate()-6); return localDateKey(d); })();
 
     // Parallel: tasks + projects + habits (7-day) + habit (30-day for monthly)
-    const monthStart = (() => { const d=new Date(); d.setDate(1); return d.toISOString().split('T')[0]; })();
+    const monthStart = (() => { const d=new Date(); d.setDate(1); return localDateKey(d); })();
     const weekStart  = sevenDaysAgo;
     const [taskData, projData, habitData, habitMonthData] = await Promise.all([
       notionQuery(DB.TASK, { property:'Archive 封存', checkbox:{equals:false} }),
@@ -4181,7 +4196,7 @@ async function loadDashboard() {
 
     // Weekly/Monthly done tracking
     const now7 = new Date(); now7.setDate(now7.getDate()-6);
-    const weekStartStr = now7.toISOString().split('T')[0];
+    const weekStartStr = localDateKey(now7);
     let weekDone=0, monthDone=0, weekTotal=0, monthTotal=0;
 
     for (const pg of tasks) {
