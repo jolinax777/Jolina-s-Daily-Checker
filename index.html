@@ -551,9 +551,18 @@ body {
 .cal-month-cell:active { border-color: var(--wine-light); }
 .cal-month-cell.today { border-color: var(--wine-light); background: rgba(26,95,168,0.07); }
 .cal-month-cell.weekend { background: rgba(74,156,199,0.04); }
+.cal-month-cell.holiday { background: rgba(198,40,40,0.06); border-color: rgba(239,83,80,0.22); }
+.cal-month-cell.today.holiday { border-color: var(--wine-light); background: linear-gradient(135deg, rgba(26,95,168,0.07), rgba(198,40,40,0.08)); }
 .cal-month-cell.other-month { opacity: 0.3; }
 .cal-month-day-num { font-size: 0.75rem; font-weight: 600; color: var(--text2); text-align: center; margin-bottom: 2px; }
 .cal-month-cell.today .cal-month-day-num { color: var(--wine-light); }
+.cal-month-cell.holiday .cal-month-day-num { color: #ef5350; }
+.cal-month-holiday {
+  display:block; width:max-content; max-width:100%; margin:0 auto 2px;
+  padding:1px 4px; border-radius:5px;
+  background:rgba(198,40,40,0.14); color:#ef5350;
+  font-size:0.56rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
 .cal-dot { width: 6px; height: 6px; border-radius: 50%; margin: 1px auto; }
 .cal-dot.doing { background: var(--blue-light); }
 .cal-dot.todo  { background: var(--text3); }
@@ -648,9 +657,12 @@ body {
 .cal-month-cell:active { border-color: var(--wine-light); }
 .cal-month-cell.today { border-color: var(--wine-light); background: rgba(26,95,168,0.07); }
 .cal-month-cell.weekend { background: rgba(74,156,199,0.04); }
+.cal-month-cell.holiday { background: rgba(198,40,40,0.06); border-color: rgba(239,83,80,0.22); }
+.cal-month-cell.today.holiday { border-color: var(--wine-light); background: linear-gradient(135deg, rgba(26,95,168,0.07), rgba(198,40,40,0.08)); }
 .cal-month-cell.other-month { opacity: 0.3; }
 .cal-month-day-num { font-size: 0.75rem; font-weight: 600; color: var(--text2); text-align: center; margin-bottom: 2px; }
 .cal-month-cell.today .cal-month-day-num { color: var(--wine-light); }
+.cal-month-cell.holiday .cal-month-day-num { color: #ef5350; }
 .cal-dot { width: 6px; height: 6px; border-radius: 50%; margin: 1px auto; }
 .cal-dot.doing { background: var(--blue-light); }
 .cal-dot.todo  { background: var(--text3); }
@@ -3866,10 +3878,16 @@ function renderCalendar() {
       const dow     = date.getDay();
       const isToday = dateStr === todayStr;
       const isWknd  = dow === 0 || dow === 6;
+      const holiday = HOLIDAYS[dateStr] || '';
       const tasks   = calTaskCache[dateStr] || [];
-      const todayCls = isToday ? ' today' : isWknd ? ' weekend' : '';
-      html += `<div class="cal-month-cell${todayCls}" onclick="openCalDetail('${dateStr}')">
-        <div class="cal-month-day-num">${d}</div>`;
+      const monthClasses = [
+        isToday ? 'today' : '',
+        isWknd ? 'weekend' : '',
+        holiday ? 'holiday' : ''
+      ].filter(Boolean).join(' ');
+      html += `<div class="cal-month-cell${monthClasses ? ' ' + monthClasses : ''}" onclick="openCalDetail('${dateStr}')">
+        <div class="cal-month-day-num">${d}</div>
+        ${holiday ? `<span class="cal-month-holiday">${holiday}</span>` : ''}`;
       for (const t of tasks.slice(0, 4)) {
         const dotStyle = t.source === 'google' ? ` style="background:${t.calendarColor || getGoogleCalendarColor(t.calendarId)}"` : '';
         html += `<div class="cal-dot ${t.cls}"${dotStyle}></div>`;
