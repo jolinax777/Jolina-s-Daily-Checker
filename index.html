@@ -511,6 +511,10 @@ body {
   background:var(--surface2); font-size:0.78rem; color:var(--text2);
 }
 .gcal-picker-row input { width:16px; height:16px; flex-shrink:0; }
+.gcal-picker-row input[type="color"] {
+  width:28px; height:28px; padding:0; border:1px solid var(--surface3);
+  border-radius:50%; background:transparent; overflow:hidden;
+}
 .gcal-color-swatch {
   width:14px; height:14px; border-radius:50%; flex-shrink:0;
   border:1px solid rgba(13,33,55,0.12);
@@ -526,6 +530,24 @@ body {
   border:1px solid var(--surface3); background:var(--surface2);
   border-radius:999px; padding:4px 8px;
 }
+.gcal-tools {
+  display:grid; grid-template-columns: minmax(0, 1fr) minmax(130px, 0.45fr);
+  gap:8px; margin-top:10px;
+}
+.gcal-tools .form-input, .gcal-tools .form-select { margin:0; padding:8px 10px; font-size:0.78rem; }
+.gcal-legend {
+  display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;
+}
+.gcal-legend-chip {
+  display:inline-flex; align-items:center; gap:5px;
+  border:1px solid var(--surface3); background:var(--surface2);
+  color:var(--text2); border-radius:999px; padding:4px 8px; font-size:0.7rem;
+}
+.gcal-permission {
+  font-size:0.68rem; padding:2px 6px; border-radius:8px;
+  background:rgba(40,168,122,0.12); color:var(--green-light);
+}
+.gcal-permission.readonly { background:rgba(198,40,40,0.08); color:#ef5350; }
 .gcal-log {
   display:none; margin-top:8px; max-height:90px; overflow:auto;
   background:var(--surface2); border:1px solid var(--surface3); border-radius:var(--radius-sm);
@@ -1426,6 +1448,7 @@ body.theme-midnight .cal-detail-panel { background: var(--surface); }
         <button class="gcal-mini-btn primary" onclick="connectGoogleCalendar()">連線 Google</button>
         <button class="gcal-mini-btn" onclick="loadGoogleCalendarOverlay()">載入 Google 事件</button>
         <button class="gcal-mini-btn" onclick="syncGoogleCalendarMonth()">同步寫入 Google</button>
+        <button class="gcal-mini-btn" onclick="clearGoogleEventCache();loadCalendar()">清快取</button>
         <button class="gcal-mini-btn" onclick="disconnectGoogleCalendar()">登出</button>
       </div>
       <div class="gcal-settings" id="gcalSettings">
@@ -1452,6 +1475,13 @@ body.theme-midnight .cal-detail-panel { background: var(--surface); }
       </div>
       <div class="gcal-note" id="gcalDebugNote"></div>
       <div class="gcal-load-state" id="gcalLoadState"></div>
+      <div class="gcal-tools">
+        <input class="form-input" id="gcalEventSearch" placeholder="搜尋 Google 事件..." oninput="updateGoogleEventFilters()">
+        <select class="form-select" id="gcalSourceFilter" onchange="updateGoogleEventFilters()">
+          <option value="all">全部來源</option>
+        </select>
+      </div>
+      <div class="gcal-legend" id="gcalLegend"></div>
       <div class="gcal-log" id="gcalLog"></div>
     </div>
     <div id="calContent"><div class="loading"><span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span></div></div>
@@ -1787,10 +1817,17 @@ let googleCalendarSettings = {
   overlayIds: localStorage.getItem('gcal_overlay_ids') || ''
 };
 let googleCalendarList = JSON.parse(localStorage.getItem('gcal_calendar_list') || '[]');
+let googleCalendarColors = JSON.parse(localStorage.getItem('gcal_calendar_colors') || '{}');
+let googleEventCache = JSON.parse(localStorage.getItem('gcal_event_cache_v1') || '{}');
+let googleEventFilters = {
+  search: localStorage.getItem('gcal_event_search') || '',
+  source: localStorage.getItem('gcal_event_source_filter') || 'all'
+};
 let googleOverlayState = {
   lastLoaded: localStorage.getItem('gcal_last_loaded') || '',
   count: Number(localStorage.getItem('gcal_last_count') || 0),
-  failures: JSON.parse(localStorage.getItem('gcal_last_failures') || '[]')
+  failures: JSON.parse(localStorage.getItem('gcal_last_failures') || '[]'),
+  fromCache: localStorage.getItem('gcal_last_from_cache') === '1'
 };
 
 // ═══════════════════════════════════════
@@ -2084,9 +2121,12 @@ function updateGCalUI() {
   const status = document.getElementById('gcalStatus');
   const note = document.getElementById('gcalOriginNote');
   const debug = document.getElementById('gcalDebugNote');
+  const search = document.getElementById('gcalEventSearch');
+  const source = document.getElementById('gcalSourceFilter');
   if (client) client.value = googleCalendarSettings.clientId;
   if (cal) cal.value = googleCalendarSettings.calendarId || 'primary';
   if (overlay) overlay.value = googleCalendarSettings.overlayIds || '';
+  if (search) search.value = googleEventFilters.search || '';
   if (status) status.textContent = hasValidGoogleToken() ? `Google Calendar：已連線 (${googleCalendarSettings.calendarId || 'primary'})` : 'Google Calendar：尚未連線';
   if (note) note.innerHTML = `Google Cloud OAuth 請加入 JavaScript origin：<b>${location.origin}</b><br>Authorized redirect URI：<b>${getGCalRedirectUri()}</b><br>手機若從 LINE 開啟，請改用 Safari/Chrome 或加入主畫面後再授權。`;
   if (debug) {
@@ -2095,6 +2135,8 @@ function updateGCalUI() {
     debug.textContent = `診斷：Google script ${gis}｜${idOk}`;
   }
   renderGoogleCalendarPicker();
+  renderGoogleFilterOptions();
+  renderGoogleCalendarLegend();
   updateGoogleOverlayState();
 }
 
@@ -2121,6 +2163,7 @@ function clearGoogleToken() {
 }
 
 function getGoogleCalendarColor(calendarId = '') {
+  if (googleCalendarColors[calendarId]) return googleCalendarColors[calendarId];
   const found = googleCalendarList.find(c => c.id === calendarId);
   if (found?.backgroundColor) return found.backgroundColor;
   const palette = ['#7c5cff', '#e85d8f', '#ef6c35', '#2a9d8f', '#1a95d1', '#a35f00', '#6d7f2a', '#c44f7f'];
@@ -2147,11 +2190,15 @@ function renderGoogleCalendarPicker() {
     const title = escapeHtml(cal.summaryOverride || cal.summary || cal.id);
     const sub = escapeHtml(`${cal.primary ? '主要日曆' : cal.accessRole || 'reader'}｜${cal.id}`);
     const color = getGoogleCalendarColor(cal.id);
+    const writable = canWriteGoogleCalendar(cal.id);
+    const permission = writable ? '可寫' : '唯讀';
     const checked = selected.has(cal.id) ? 'checked' : '';
     return `<label class="gcal-picker-row">
       <input type="checkbox" value="${id}" ${checked} onchange="updateGCalOverlayFromPicker()">
       <span class="gcal-color-swatch" style="background:${color};"></span>
       <span class="gcal-picker-main"><span class="gcal-picker-title">${title}</span><span class="gcal-picker-sub">${sub}</span></span>
+      <span class="gcal-permission ${writable ? '' : 'readonly'}">${permission}</span>
+      <input type="color" value="${color}" title="自訂顏色" onchange="setGoogleCalendarColor('${id}', this.value)">
     </label>`;
   }).join('');
 }
@@ -2162,7 +2209,75 @@ function updateGCalOverlayFromPicker() {
   if (overlay) overlay.value = ids.join(',');
   googleCalendarSettings.overlayIds = ids.join(',');
   localStorage.setItem('gcal_overlay_ids', googleCalendarSettings.overlayIds);
+  renderGoogleFilterOptions();
+  renderGoogleCalendarLegend();
   updateGoogleOverlayState();
+}
+
+function setGoogleCalendarColor(calendarId, color) {
+  googleCalendarColors[calendarId] = color;
+  localStorage.setItem('gcal_calendar_colors', JSON.stringify(googleCalendarColors));
+  renderGoogleCalendarPicker();
+  renderGoogleCalendarLegend();
+  loadCalendar();
+}
+
+function canWriteGoogleCalendar(calendarId = googleCalendarSettings.calendarId) {
+  if ((calendarId || 'primary') === 'primary') return true;
+  const cal = googleCalendarList.find(c => c.id === calendarId);
+  return !cal || ['owner', 'writer'].includes(cal.accessRole);
+}
+
+function renderGoogleFilterOptions() {
+  const select = document.getElementById('gcalSourceFilter');
+  if (!select) return;
+  const selectedIds = getOverlayCalendarIds();
+  const options = ['<option value="all">全部來源</option>'].concat(selectedIds.map(id => {
+    const label = escapeHtml(getGoogleCalendarLabel(id));
+    return `<option value="${escapeHtml(id)}">${label}</option>`;
+  }));
+  select.innerHTML = options.join('');
+  if (!selectedIds.includes(googleEventFilters.source) && googleEventFilters.source !== 'all') {
+    googleEventFilters.source = 'all';
+    localStorage.setItem('gcal_event_source_filter', 'all');
+  }
+  select.value = googleEventFilters.source || 'all';
+}
+
+function renderGoogleCalendarLegend() {
+  const el = document.getElementById('gcalLegend');
+  if (!el) return;
+  const ids = getOverlayCalendarIds();
+  if (!ids.length) {
+    el.innerHTML = '';
+    return;
+  }
+  el.innerHTML = ids.map(id => {
+    const color = getGoogleCalendarColor(id);
+    return `<span class="gcal-legend-chip"><span class="gcal-color-swatch" style="background:${color};"></span>${escapeHtml(getGoogleCalendarLabel(id))}</span>`;
+  }).join('');
+}
+
+function updateGoogleEventFilters() {
+  googleEventFilters.search = document.getElementById('gcalEventSearch')?.value.trim() || '';
+  googleEventFilters.source = document.getElementById('gcalSourceFilter')?.value || 'all';
+  localStorage.setItem('gcal_event_search', googleEventFilters.search);
+  localStorage.setItem('gcal_event_source_filter', googleEventFilters.source);
+  renderCalendar();
+}
+
+function isGoogleEventVisible(event) {
+  if (event.source !== 'google') return true;
+  if (googleEventFilters.source !== 'all' && event.calendarId !== googleEventFilters.source) return false;
+  const q = (googleEventFilters.search || '').toLowerCase();
+  if (!q) return true;
+  return [event.name, event.calendarName, event.location, event.description]
+    .filter(Boolean)
+    .some(text => String(text).toLowerCase().includes(q));
+}
+
+function visibleCalendarTasks(dateStr) {
+  return (calTaskCache[dateStr] || []).filter(isGoogleEventVisible);
 }
 
 function updateGoogleOverlayState() {
@@ -2171,10 +2286,14 @@ function updateGoogleOverlayState() {
   const selectedCount = getOverlayCalendarIds().length;
   const last = googleOverlayState.lastLoaded ? new Date(googleOverlayState.lastLoaded).toLocaleString('zh-TW', { hour12:false }) : '尚未載入';
   const failText = googleOverlayState.failures.length ? `失敗 ${googleOverlayState.failures.length} 個` : '無失敗';
+  const cacheText = googleOverlayState.fromCache ? '快取' : 'API';
+  const writeText = canWriteGoogleCalendar() ? '同步目標可寫' : '同步目標唯讀';
   el.innerHTML = `
     <span class="gcal-state-pill">顯示日曆 ${selectedCount} 個</span>
     <span class="gcal-state-pill">Google 事件 ${googleOverlayState.count} 筆</span>
     <span class="gcal-state-pill">最後載入：${escapeHtml(last)}</span>
+    <span class="gcal-state-pill">${escapeHtml(cacheText)}</span>
+    <span class="gcal-state-pill">${escapeHtml(writeText)}</span>
     <span class="gcal-state-pill">${escapeHtml(failText)}</span>`;
 }
 
@@ -2384,6 +2503,8 @@ async function loadGoogleCalendarList() {
     });
     localStorage.setItem('gcal_calendar_list', JSON.stringify(googleCalendarList));
     renderGoogleCalendarPicker();
+    renderGoogleFilterOptions();
+    renderGoogleCalendarLegend();
     updateGoogleOverlayState();
     gcalLog(`已讀取 ${googleCalendarList.length} 個 Google 日曆`);
     showToast(`✅ 已讀取 ${googleCalendarList.length} 個 Google 日曆`);
@@ -2437,6 +2558,33 @@ function formatGoogleEventDateTime(value = '', allDay = false) {
   return d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+function googleEventCacheKey(calendarId, startDate, endDate) {
+  return `${calendarId}__${localDateKey(startDate)}__${localDateKey(endDate)}`;
+}
+
+function readGoogleEventCache(calendarId, startDate, endDate) {
+  const key = googleEventCacheKey(calendarId, startDate, endDate);
+  const entry = googleEventCache[key];
+  if (!entry) return null;
+  const ttl = 10 * 60 * 1000;
+  if (Date.now() - entry.savedAt > ttl) return null;
+  return entry.items || [];
+}
+
+function writeGoogleEventCache(calendarId, startDate, endDate, items) {
+  const key = googleEventCacheKey(calendarId, startDate, endDate);
+  googleEventCache[key] = { savedAt: Date.now(), items };
+  const keys = Object.keys(googleEventCache).sort((a, b) => googleEventCache[b].savedAt - googleEventCache[a].savedAt);
+  keys.slice(40).forEach(k => delete googleEventCache[k]);
+  localStorage.setItem('gcal_event_cache_v1', JSON.stringify(googleEventCache));
+}
+
+function clearGoogleEventCache(silent = false) {
+  googleEventCache = {};
+  localStorage.removeItem('gcal_event_cache_v1');
+  if (!silent) showToast('Google 事件快取已清除');
+}
+
 function addGoogleEventToCalendarCache(event, calendarId = '') {
   if (event.extendedProperties?.private?.warRoomManaged === 'true' || event.extendedProperties?.private?.notionPageId) return;
   const startRaw = event.start?.dateTime || event.start?.date;
@@ -2465,9 +2613,16 @@ function addGoogleEventToCalendarCache(event, calendarId = '') {
   });
 }
 
-async function fetchGoogleEventsForRange(startDate, endDate, calendarId = null) {
+async function fetchGoogleEventsForRange(startDate, endDate, calendarId = null, force = false) {
+  const id = calendarId || googleCalendarSettings.calendarId || 'primary';
+  if (!force) {
+    const cached = readGoogleEventCache(id, startDate, endDate);
+    if (cached) return { items: cached, fromCache: true };
+  }
   const data = await gcalFetch(`/events?timeMin=${encodeURIComponent(startDate.toISOString())}&timeMax=${encodeURIComponent(endDate.toISOString())}&singleEvents=true&showDeleted=false&orderBy=startTime`, {}, calendarId);
-  return data.items || [];
+  const items = data.items || [];
+  writeGoogleEventCache(id, startDate, endDate, items);
+  return { items, fromCache: false };
 }
 
 function getOverlayCalendarIds() {
@@ -2477,13 +2632,16 @@ function getOverlayCalendarIds() {
     .filter(Boolean);
 }
 
-async function fetchOverlayGoogleEvents(startDate, endDate) {
+async function fetchOverlayGoogleEvents(startDate, endDate, { force = false } = {}) {
   const ids = getOverlayCalendarIds();
   if (!ids.length) return [];
   const failures = [];
+  let allFromCache = true;
   const groups = await Promise.all(ids.map(async id => {
     try {
-      const events = await fetchGoogleEventsForRange(startDate, endDate, id);
+      const result = await fetchGoogleEventsForRange(startDate, endDate, id, force);
+      if (!result.fromCache) allFromCache = false;
+      const events = result.items || [];
       return events.map(ev => ({ event: ev, calendarId: id }));
     } catch(e) {
       const message = friendlyErrorMessage(e);
@@ -2496,11 +2654,13 @@ async function fetchOverlayGoogleEvents(startDate, endDate) {
   googleOverlayState = {
     lastLoaded: new Date().toISOString(),
     count: events.length,
-    failures
+    failures,
+    fromCache: Boolean(events.length && allFromCache)
   };
   localStorage.setItem('gcal_last_loaded', googleOverlayState.lastLoaded);
   localStorage.setItem('gcal_last_count', String(googleOverlayState.count));
   localStorage.setItem('gcal_last_failures', JSON.stringify(failures));
+  localStorage.setItem('gcal_last_from_cache', googleOverlayState.fromCache ? '1' : '0');
   updateGoogleOverlayState();
   return events;
 }
@@ -2527,7 +2687,7 @@ async function loadGoogleCalendarOverlay() {
   const endDate = new Date(target.getFullYear(), target.getMonth() + 1, 1);
   try {
     showToast('📅 載入 Google 事件...');
-    const events = await fetchOverlayGoogleEvents(startDate, endDate);
+    const events = await fetchOverlayGoogleEvents(startDate, endDate, { force: true });
     events.forEach(({event, calendarId}) => addGoogleEventToCalendarCache(event, calendarId));
     sortCalendarCache();
     renderCalendar();
@@ -2577,6 +2737,9 @@ async function syncGoogleCalendarMonth() {
   showToast('🔄 寫入 Google Calendar...', 2500);
   try {
     await ensureGoogleToken();
+    if (!canWriteGoogleCalendar(googleCalendarSettings.calendarId)) {
+      throw new Error(`同步寫入目標「${getGoogleCalendarLabel(googleCalendarSettings.calendarId)}」是唯讀日曆，請改成可寫日曆`);
+    }
     gcalLog(`同步範圍：${startStr} ~ ${endStr}`);
     const [notionData, googleData] = await Promise.all([
       notionQuery(DB.TASK, {
@@ -2603,7 +2766,16 @@ async function syncGoogleCalendarMonth() {
       const nid = ev.extendedProperties?.private?.notionPageId;
       if (nid) eventsByNotionId[nid] = ev;
     }
-    let createdG = 0, updatedG = 0;
+    const conflicts = notionTasks.filter(task => {
+      const ev = eventsByNotionId[task.id];
+      return ev?.updated && task.lastEdited && new Date(ev.updated) > new Date(task.lastEdited);
+    });
+    let overwriteConflicts = true;
+    if (conflicts.length) {
+      gcalLog(`偵測到 ${conflicts.length} 筆 Google 事件比 Notion 更新，可能有同步衝突`);
+      overwriteConflicts = confirm(`偵測到 ${conflicts.length} 筆 Google 事件比 Notion 任務更新。\n\n按「確定」用 Notion 覆蓋 Google。\n按「取消」略過這些衝突事件。`);
+    }
+    let createdG = 0, updatedG = 0, skippedG = 0;
     for (const task of notionTasks) {
       const ev = eventsByNotionId[task.id];
       if (!ev) {
@@ -2611,10 +2783,15 @@ async function syncGoogleCalendarMonth() {
         createdG++;
         continue;
       }
+      if (!overwriteConflicts && conflicts.some(c => c.id === task.id)) {
+        skippedG++;
+        continue;
+      }
       await gcalFetch(`/events/${encodeURIComponent(ev.id)}`, { method: 'PATCH', body: JSON.stringify(notionTaskToEvent(task)) });
       updatedG++;
     }
-    gcalLog(`完成：Google 新增 ${createdG}、Google 更新 ${updatedG}。Google 原生日曆不會匯入 Notion。`);
+    clearGoogleEventCache(true);
+    gcalLog(`完成：Google 新增 ${createdG}、Google 更新 ${updatedG}、衝突略過 ${skippedG}。Google 原生日曆不會匯入 Notion。`);
     showToast('✅ 已將 Notion 任務寫入 Google', 3000);
     loadCalendar();
   } catch(e) {
@@ -3830,7 +4007,7 @@ function renderCalendar() {
       const isToday = dateStr === todayStr;
       const isWknd  = dow === 0 || dow === 6;
       const holiday = HOLIDAYS[dateStr] || '';
-      const tasks   = calTaskCache[dateStr] || [];
+      const tasks   = visibleCalendarTasks(dateStr);
 
       const bgStyle = isToday ? 'border-color: var(--wine-light); background: rgba(26,95,168,0.07);' :
                       holiday ? 'background: rgba(198,40,40,0.05);' :
@@ -3879,7 +4056,7 @@ function renderCalendar() {
       const isToday = dateStr === todayStr;
       const isWknd  = dow === 0 || dow === 6;
       const holiday = HOLIDAYS[dateStr] || '';
-      const tasks   = calTaskCache[dateStr] || [];
+      const tasks   = visibleCalendarTasks(dateStr);
       const monthClasses = [
         isToday ? 'today' : '',
         isWknd ? 'weekend' : '',
@@ -3901,7 +4078,7 @@ function renderCalendar() {
 }
 
 function openCalDetail(dateStr) {
-  const tasks = calTaskCache[dateStr] || [];
+  const tasks = visibleCalendarTasks(dateStr);
   if (!tasks.length) return;
   const [y,m,d] = dateStr.split('-');
   document.getElementById('calDetailTitle').textContent = `${parseInt(m)}月${parseInt(d)}日 ― ${tasks.length} 件任務`;
