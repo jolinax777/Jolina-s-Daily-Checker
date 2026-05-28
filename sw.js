@@ -1,5 +1,5 @@
-const CACHE = 'war-room-v20260526-gcal-2';
-const ASSETS = ['./', './index.html', './manifest.json'];
+const CACHE = 'war-room-v20260528-mobile-gcal-1';
+const ASSETS = ['./', './index.html', './manifest.json', './favicon.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
